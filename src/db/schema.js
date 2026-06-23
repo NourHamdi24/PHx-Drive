@@ -3,16 +3,15 @@ const createTables = (db) => {
 
   // Users table
   db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT NOT NULL,
-      api_key TEXT NOT NULL,
-      api_secret TEXT NOT NULL,
-      frappe_url TEXT NOT NULL,
-      root_folder_id TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL,
+    frappe_url TEXT NOT NULL,
+    session_cookie TEXT NOT NULL,
+    root_folder_id TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
 
   // Sync state table
   db.exec(`
