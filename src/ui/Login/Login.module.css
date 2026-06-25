@@ -1,0 +1,122 @@
+.loginCard {
+  background-color: #fff;
+  border-radius: 20px;
+  padding: 20px;
+  width: 30vw;
+  height: 60vh;
+}
+.loginContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+.logo {
+  padding: 20px;
+  background-color: #b31313;
+  margin-bottom: 2rem;
+  border-radius: 10px;
+  box-shadow:
+    0 8px 16px rgba(179, 19, 19, 0.15),
+    0 16px 32px rgba(179, 19, 19, 0.12);
+}
+.logo h1 {
+  color: #fff;
+}
+.title h1 {
+  text-align: center;
+  font-size: 1.5rem;
+  color: #000;
+  margin-bottom: 10px;
+}
+.title h2 {
+  text-align: center;
+  font-size: 1rem;
+  color: #c01515;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.subtitle {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 20px;
+  font-weight: bold;
+}
+.subtitle p {
+  text-align: center;
+  font-size: 1rem;
+  color: #6b7280;
+}
+.subtitle span {
+  text-align: center;
+  font-size: 1rem;
+  color: #484c53;
+}
+.loginForm {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 400px;
+  margin-top: 30px;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.inputGroup label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1b1a27;
+}
+
+.inputGroup input {
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.inputGroup input:focus {
+  border-color: #b31313;
+}
+
+.loginBtn {
+  width: 100%;
+  background-color: #b31313;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.loginBtn:hover {
+  background-color: #9a1111;
+}
+
+.buttonDisabled {
+  width: 100%;
+  background-color: #c9c9c9;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 14px;
+  cursor: not-allowed;
+}
+
+.error {
+  color: #dc2626;
+  font-size: 14px;
+  text-align: center;
+}

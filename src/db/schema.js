@@ -9,6 +9,7 @@ const createTables = (db) => {
     frappe_url TEXT NOT NULL,
     session_cookie TEXT NOT NULL,
     root_folder_id TEXT NOT NULL,
+    sync_folder_path TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `);
