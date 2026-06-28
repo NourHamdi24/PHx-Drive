@@ -33,52 +33,54 @@ const Login = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className={styles.loginCard}>
-      <div className={styles.loginContent}>
-        <div className={styles.logo}>
-          <h1>Px</h1>
-        </div>
-        <div className={styles.title}>
-          <h1>PharaonX</h1>
-          <h2>no limitations</h2>
-        </div>
-        <div className={styles.subtitle}>
-          <p>Sign in to</p>
-          <span>PHx Drive</span>
-        </div>
-        <form onSubmit={handleLogin} className={styles.loginForm}>
-          <div className={styles.inputGroup}>
-            <label htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              placeholder="you@pharaonx.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
-            />
+    <div className={styles.login}>
+      <div className={styles.loginCard}>
+        <div className={styles.loginContent}>
+          <div className={styles.logo}>
+            <h1>Px</h1>
           </div>
-          <div className={styles.inputGroup}>
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleLogin(e)}
-              disabled={loading}
-            />
+          <div className={styles.title}>
+            <h1>PharaonX</h1>
+            <h2>no limitations</h2>
           </div>
-          {error && <p className={styles.error}>{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className={loading ? styles.buttonDisabled : styles.loginBtn}
-          >
-            {loading ? "Signing in..." : "Sign In"}
-          </button>
-        </form>
+          <div className={styles.subtitle}>
+            <p>Sign in to</p>
+            <span>PHx Drive</span>
+          </div>
+          <form onSubmit={handleLogin} className={styles.loginForm}>
+            <div className={styles.inputGroup}>
+              <label htmlFor="email">Email</label>
+              <input
+                id="email"
+                type="email"
+                placeholder="you@pharaonx.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            <div className={styles.inputGroup}>
+              <label htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleLogin(e)}
+                disabled={loading}
+              />
+            </div>
+            {error && <p className={styles.error}>{error}</p>}
+            <button
+              type="submit"
+              disabled={loading}
+              className={loading ? styles.buttonDisabled : styles.loginBtn}
+            >
+              {loading ? "Signing in..." : "Sign In"}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

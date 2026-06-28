@@ -53,6 +53,7 @@ const handleLogin = async (email, password) => {
     email,
     sessionCookie,
     rootFolderId,
+    needsSyncFolder: true,
   };
 };
 
@@ -89,9 +90,17 @@ const handleAutoLogin = async () => {
 
 const handleLogout = () => {
   const db = getDatabase();
+  db.prepare(
+    "DELETE FROM sync_state WHERE user_id = (SELECT id FROM users LIMIT 1)",
+  ).run();
+  db.prepare(
+    "DELETE FROM sync_queue WHERE user_id = (SELECT id FROM users LIMIT 1)",
+  ).run();
+  db.prepare(
+    "DELETE FROM trash WHERE user_id = (SELECT id FROM users LIMIT 1)",
+  ).run();
   db.prepare("DELETE FROM users").run();
   clearCredentials();
-  console.log("User logged out");
   return { success: true };
 };
 

@@ -97,13 +97,13 @@ const uploadFile = async (
 ) => {
   const FormData = require("form-data");
   const fs = require("fs");
-  const { v4: uuidv4 } = require("uuid");
 
   const client = createClient(frappUrl, sessionCookie);
   const stat = fs.statSync(filePath);
   const form = new FormData();
 
-  form.append("uuid", uuidv4());
+  const crypto = require("crypto");
+  form.append("uuid", crypto.randomUUID());
   form.append("chunk_index", "0");
   form.append("total_file_size", stat.size.toString());
   form.append("chunk_size", "20971520");

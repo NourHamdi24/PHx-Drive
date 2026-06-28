@@ -1,0 +1,86 @@
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 30vh 0;
+}
+
+.card {
+  background-color: #fff;
+  padding: 40px;
+  border-radius: 12px;
+  width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.title {
+  color: #000;
+  margin: 0;
+  font-size: 22px;
+}
+
+.subtitle {
+  color: #888;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.pathRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: #fff;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #8b8b8b;
+}
+
+.path {
+  flex: 1;
+  color: #ccc;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.browseBtn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  background-color: #b31313;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  outline: none;
+}
+
+.confirmBtn {
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  background-color: #b31313;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.confirmBtnDisabled {
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  background-color: #a0a0a0;
+  color: #666;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: not-allowed;
+}
+
+.error {
+  color: #ef4444;
+  font-size: 13px;
+  margin: 0;
+}
