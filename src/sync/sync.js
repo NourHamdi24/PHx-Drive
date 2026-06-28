@@ -147,15 +147,47 @@ const runSync = async () => {
       await downloadFile(frappe_url, session_cookie, file.name, localPath);
       saveSyncState(db, user.id, file, localPath, "synced");
     } else if (existingState && file.modified !== existingState.modified) {
-      // File exists but modified timestamp changed on remote
       const localStat = fs.statSync(localPath);
-      const localModified = localStat.mtime.toISOString();
+      const localModifiedTime = localStat.mtime.toISOString();
 
-      if (localModified !== existingState.last_synced_at) {
+      // Compare local modified time against what we last recorded
+      const lastSynced = existingState.last_synced_at;
+      const localChanged = localModifiedTime > lastSynced;
+      const remoteChanged = file.modified !== existingState.modified;
+
+      if (localChanged && remoteChanged) {
         // Both sides changed → conflict
         console.log(`Conflict detected: ${file.relativePath}`);
+
+        // Save conflict to DB
+        const existingConflict = db
+          .prepare(
+            "SELECT id FROM conflicts WHERE entity_name = ? AND user_id = ? AND status = ?",
+          )
+          .get(file.name, user.id, "pending");
+
+        if (!existingConflict) {
+          db.prepare(
+            `
+        INSERT INTO conflicts 
+        (user_id, entity_name, title, local_path, local_modified, local_size, remote_modified, remote_size)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+          ).run(
+            user.id,
+            file.name,
+            file.title,
+            localPath,
+            localModifiedTime,
+            localStat.size,
+            file.modified,
+            file.file_size,
+          );
+        }
+
+        // Update sync state to conflict
         saveSyncState(db, user.id, file, localPath, "conflict");
-      } else {
+      } else if (remoteChanged && !localChanged) {
         // Only remote changed → download
         console.log(`Remote update: ${file.relativePath}`);
         await downloadFile(frappe_url, session_cookie, file.name, localPath);
@@ -167,7 +199,6 @@ const runSync = async () => {
   // ─── Step 5: Local → Remote (upload missing) ───────────
   console.log("Checking local → remote...");
   for (const [relativePath, localFile] of Object.entries(localFiles)) {
-    // Check if this file exists on remote
     const existsOnRemote = remoteFiles.find(
       (f) => f.relativePath === relativePath,
     );

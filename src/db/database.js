@@ -14,6 +14,8 @@ function getDatabase() {
 
     // Enable WAL mode for better performance
     db.pragma("journal_mode = WAL");
+    db.pragma("foreign_keys = ON");
+    db.pragma("busy_timeout = 5000");
 
     // Create all tables if they don't exist
     createTables(db);

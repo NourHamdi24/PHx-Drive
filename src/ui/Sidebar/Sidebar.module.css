@@ -1,0 +1,44 @@
+.sidebar {
+  width: 180px;
+  background-color: #fff;
+  border-right: 1px solid #222;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 8px;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: none;
+  background-color: transparent;
+  color: #666;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background-color 0.15s;
+}
+
+.tab:hover {
+  background-color: #1a1a1a;
+  color: #aaa;
+}
+
+.active {
+  background-color: #ad2a2a;
+  color: #ffffff;
+}
+
+.icon {
+  font-size: 15px;
+}
+
+.label {
+  font-weight: 500;
+}

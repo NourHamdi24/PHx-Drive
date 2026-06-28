@@ -6,7 +6,11 @@ const { uploadFile, createFolder, trashOrRestore } = require("./api");
 const { getDatabase } = require("../db/database");
 
 let watcher = null;
-
+const isAutoMode = () => {
+  const db = getDatabase();
+  const user = db.prepare("SELECT sync_mode FROM users LIMIT 1").get();
+  return user?.sync_mode === "auto";
+};
 // Skip list — files Node itself is writing (to prevent upload loops)
 const skipList = new Set();
 
@@ -107,6 +111,8 @@ const startWatcher = (user, emitLog) => {
 
   // ─── File Added ──────────────────────────────────────────
   watcher.on("add", async (filePath) => {
+    if (!isAutoMode()) return;
+    if (skipList.has(filePath)) return;
     if (skipList.has(filePath)) return;
 
     const db = getDatabase();
@@ -168,6 +174,8 @@ const startWatcher = (user, emitLog) => {
 
   // ─── File Changed ────────────────────────────────────────
   watcher.on("change", async (filePath) => {
+    if (!isAutoMode()) return;
+    if (skipList.has(filePath)) return;
     if (skipList.has(filePath)) return;
 
     const db = getDatabase();
@@ -227,6 +235,8 @@ const startWatcher = (user, emitLog) => {
 
   // ─── File Deleted ────────────────────────────────────────
   watcher.on("unlink", async (filePath) => {
+    if (!isAutoMode()) return;
+    if (skipList.has(filePath)) return;
     if (skipList.has(filePath)) return;
 
     const db = getDatabase();
@@ -286,6 +296,8 @@ const startWatcher = (user, emitLog) => {
 
   // ─── Folder Added ────────────────────────────────────────
   watcher.on("addDir", async (dirPath) => {
+    if (!isAutoMode()) return;
+    if (dirPath === sync_folder_path) return;
     if (dirPath === sync_folder_path) return; // ignore root folder
     if (skipList.has(dirPath)) return;
 

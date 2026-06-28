@@ -12,11 +12,10 @@ function App() {
       try {
         const result = await window.api.autoLogin();
         if (result.success) {
-          if (result.success) {
-            setUser(result);
-            await window.api.startWatcher();
-            setScreen(result.sync_folder_path ? "home" : "selectFolder");
-          }
+          setUser(result);
+          await window.api.startWatcher();
+          await window.api.startPolling();
+          setScreen(result.sync_folder_path ? "home" : "selectFolder");
         } else {
           setScreen("login");
         }
@@ -30,6 +29,7 @@ function App() {
   const handleLoginSuccess = async (result) => {
     setUser(result);
     await window.api.startWatcher();
+    await window.api.startPolling();
     setScreen(result.sync_folder_path ? "home" : "selectFolder");
   };
 

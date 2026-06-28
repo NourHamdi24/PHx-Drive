@@ -10,6 +10,8 @@ const createTables = (db) => {
     session_cookie TEXT NOT NULL,
     root_folder_id TEXT NOT NULL,
     sync_folder_path TEXT,
+    sync_mode TEXT DEFAULT 'manual',
+    sync_interval INTEGER DEFAULT 30,
     last_synced_at DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
@@ -62,7 +64,22 @@ const createTables = (db) => {
       FOREIGN KEY (user_id) REFERENCES users(id)
     )
   `);
-
+  db.exec(`
+  CREATE TABLE IF NOT EXISTS conflicts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    entity_name TEXT NOT NULL,
+    title TEXT NOT NULL,
+    local_path TEXT NOT NULL,
+    local_modified TEXT,
+    local_size INTEGER,
+    remote_modified TEXT,
+    remote_size INTEGER,
+    status TEXT DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  )
+`);
   console.log("All tables created successfully");
 };
 
