@@ -7,12 +7,7 @@ const Settings = ({ user }) => {
   const [syncInterval, setSyncInterval] = useState(user?.sync_interval || 30);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-
-  const handleBrowse = async () => {
-    const path = await window.api.selectFolder();
-    if (path) setSyncFolder(path);
-  };
-
+  const [autoStart, setAutoStart] = useState(false);
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -21,6 +16,8 @@ const Settings = ({ user }) => {
         sync_mode: syncMode,
         sync_interval: syncInterval,
       });
+      const [autoStart, setAutoStart] = useState(false);
+      await window.api.setAutoStart(autoStart);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
@@ -29,6 +26,22 @@ const Settings = ({ user }) => {
       setSaving(false);
     }
   };
+  const handleBrowse = async () => {
+    const path = await window.api.selectFolder();
+    if (path) setSyncFolder(path);
+  };
+  useEffect(() => {
+    const loadSettings = async () => {
+      const fresh = await window.api.getUserSettings();
+      setSyncFolder(fresh.sync_folder_path || "");
+      setSyncMode(fresh.sync_mode || "manual");
+      setSyncInterval(fresh.sync_interval || 30);
+
+      const isAutoStart = await window.api.getAutoStart();
+      setAutoStart(isAutoStart);
+    };
+    loadSettings();
+  }, []);
 
   return (
     <div className={styles.container}>
@@ -106,7 +119,20 @@ const Settings = ({ user }) => {
       )}
 
       <div className={styles.divider} />
-
+      <div className={styles.section}>
+        <label className={styles.label}>System</label>
+        <p className={styles.description}>
+          Start PHx Drive automatically when your computer boots.
+        </p>
+        <label className={styles.radioLabel}>
+          <input
+            type="checkbox"
+            checked={autoStart}
+            onChange={(e) => setAutoStart(e.target.checked)}
+          />
+          <span>Launch PHx Drive on startup</span>
+        </label>
+      </div>
       <button className={styles.saveBtn} onClick={handleSave} disabled={saving}>
         {saved ? "Saved ✅" : saving ? "Saving..." : "Save Settings"}
       </button>

@@ -1,4 +1,12 @@
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  Tray,
+  Menu,
+  nativeImage,
+} = require("electron");
 const path = require("path");
 const { getDatabase } = require("../src/db/database");
 const {
@@ -8,14 +16,18 @@ const {
 } = require("../src/auth/authHandler");
 const { runSync } = require("../src/sync/sync");
 const { startWatcher, stopWatcher } = require("../src/sync/watcher");
-const { stopPolling, startPolling } = require("../src/sync/poller");
+const { startPolling, stopPolling } = require("../src/sync/poller");
+const { startScheduler } = require("../src/sync/scheduler");
+const { startQueueProcessor } = require("../src/sync/queueProcessor");
 const {
-  resolveKeepBoth,
-  resolveKeepFrappe,
   resolveKeepLocal,
+  resolveKeepFrappe,
+  resolveKeepBoth,
+  listConflicts,
 } = require("../src/sync/conflictHandler");
 
 let mainWindow = null;
+let tray = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -36,6 +48,14 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
   }
+
+  // Hide to tray instead of closing
+  mainWindow.on("close", (event) => {
+    if (!app.isQuiting) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
+  });
 }
 
 app.whenReady().then(() => {
@@ -62,7 +82,6 @@ app.whenReady().then(() => {
       title: "Choose your PHx Drive sync folder",
       buttonLabel: "Select Folder",
     });
-
     if (result.canceled) return null;
     return result.filePaths[0];
   });
@@ -71,12 +90,10 @@ app.whenReady().then(() => {
     const db = getDatabase();
     const user = db.prepare("SELECT * FROM users LIMIT 1").get();
     if (!user) return { success: false };
-
     db.prepare("UPDATE users SET sync_folder_path = ? WHERE id = ?").run(
       folderPath,
       user.id,
     );
-
     return { success: true, folderPath };
   });
 
@@ -98,7 +115,6 @@ app.whenReady().then(() => {
         }
       }
     });
-
     return { success: true };
   });
 
@@ -107,26 +123,6 @@ app.whenReady().then(() => {
     return { success: true };
   });
 
-  // ─── Files ──────────────────────────────────────────────
-  ipcMain.handle("files:list", async () => {
-    const db = getDatabase();
-    const user = db.prepare("SELECT * FROM users LIMIT 1").get();
-    if (!user) return [];
-
-    const { listFiles } = require("../src/sync/api");
-    return await listFiles(
-      user.frappe_url,
-      user.session_cookie,
-      user.root_folder_id,
-    );
-  });
-
-  ipcMain.handle("files:shareLink", (event, entityName) => {
-    const db = getDatabase();
-    const user = db.prepare("SELECT * FROM users LIMIT 1").get();
-    const { getShareLink } = require("../src/sync/api");
-    return getShareLink(user.frappe_url, entityName);
-  });
   ipcMain.handle("sync:startPolling", () => {
     const db = getDatabase();
     const user = db.prepare("SELECT * FROM users LIMIT 1").get();
@@ -144,7 +140,6 @@ app.whenReady().then(() => {
         }
       },
     );
-
     return { success: true };
   });
 
@@ -152,24 +147,27 @@ app.whenReady().then(() => {
     stopPolling();
     return { success: true };
   });
-  ipcMain.handle("conflicts:list", () => {
+
+  // ─── Files ──────────────────────────────────────────────
+  ipcMain.handle("files:list", async () => {
     const db = getDatabase();
     const user = db.prepare("SELECT * FROM users LIMIT 1").get();
     if (!user) return [];
-    return listConflicts(user.id);
+    const { listFiles } = require("../src/sync/api");
+    return await listFiles(
+      user.frappe_url,
+      user.session_cookie,
+      user.root_folder_id,
+    );
   });
 
-  ipcMain.handle("conflicts:keepLocal", async (event, conflictId) => {
-    return await resolveKeepLocal(conflictId);
+  ipcMain.handle("files:shareLink", (event, entityName) => {
+    const db = getDatabase();
+    const user = db.prepare("SELECT * FROM users LIMIT 1").get();
+    const { getShareLink } = require("../src/sync/api");
+    return getShareLink(user.frappe_url, entityName);
   });
 
-  ipcMain.handle("conflicts:keepFrappe", async (event, conflictId) => {
-    return await resolveKeepFrappe(conflictId);
-  });
-
-  ipcMain.handle("conflicts:keepBoth", async (event, conflictId) => {
-    return await resolveKeepBoth(conflictId);
-  });
   ipcMain.handle("files:listTrash", () => {
     const db = getDatabase();
     const user = db.prepare("SELECT * FROM users LIMIT 1").get();
@@ -209,29 +207,129 @@ app.whenReady().then(() => {
     return { success: true };
   });
 
+  // ─── Conflicts ──────────────────────────────────────────
+  ipcMain.handle("conflicts:list", () => {
+    const db = getDatabase();
+    const user = db.prepare("SELECT * FROM users LIMIT 1").get();
+    if (!user) return [];
+    return listConflicts(user.id);
+  });
+
+  ipcMain.handle("conflicts:keepLocal", async (event, conflictId) => {
+    return await resolveKeepLocal(conflictId);
+  });
+
+  ipcMain.handle("conflicts:keepFrappe", async (event, conflictId) => {
+    return await resolveKeepFrappe(conflictId);
+  });
+
+  ipcMain.handle("conflicts:keepBoth", async (event, conflictId) => {
+    return await resolveKeepBoth(conflictId);
+  });
+
+  // ─── Settings ───────────────────────────────────────────
+  ipcMain.handle("settings:get", () => {
+    const db = getDatabase();
+    return db.prepare("SELECT * FROM users LIMIT 1").get() || null;
+  });
+
   ipcMain.handle("settings:save", (event, settings) => {
     const db = getDatabase();
     const user = db.prepare("SELECT * FROM users LIMIT 1").get();
     if (!user) return { success: false };
+
     db.prepare(
       `
-    UPDATE users SET 
-      sync_folder_path = ?,
-      sync_mode = ?,
-      sync_interval = ?
-    WHERE id = ?
-  `,
+      UPDATE users SET 
+        sync_folder_path = ?,
+        sync_mode = ?,
+        sync_interval = ?
+      WHERE id = ?
+    `,
     ).run(
       settings.sync_folder_path,
       settings.sync_mode,
       settings.sync_interval,
       user.id,
     );
+
+    if (settings.sync_mode === "auto") {
+      startPolling(
+        (message) => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send("sync:log", message);
+          }
+        },
+        () => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send("sync:refresh");
+          }
+        },
+      );
+    } else {
+      stopPolling();
+    }
+
     return { success: true };
   });
+
+  ipcMain.handle("settings:setAutoStart", (event, enabled) => {
+    app.setLoginItemSettings({ openAtLogin: enabled });
+    return { success: true };
+  });
+
+  ipcMain.handle("settings:getAutoStart", () => {
+    const { openAtLogin } = app.getLoginItemSettings();
+    return openAtLogin;
+  });
+
+  // ─── System Tray ────────────────────────────────────────
+  tray = new Tray(nativeImage.createEmpty());
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: "Open PHx Drive",
+      click: () => {
+        mainWindow.show();
+        mainWindow.focus();
+      },
+    },
+    {
+      label: "Sync Now",
+      click: async () => {
+        await runSync();
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("sync:refresh");
+        }
+      },
+    },
+    { type: "separator" },
+    {
+      label: "Quit",
+      click: () => {
+        app.isQuiting = true;
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setToolTip("PHx Drive");
+  tray.setContextMenu(contextMenu);
+
+  tray.on("click", () => {
+    mainWindow.show();
+    mainWindow.focus();
+  });
+
+  // ─── Start Background Services ──────────────────────────
+  startScheduler();
+  startQueueProcessor();
+
   createWindow();
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
+  if (process.platform !== "darwin") {
+    // Don't quit — keep running in tray
+  }
 });

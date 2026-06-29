@@ -41,4 +41,8 @@ contextBridge.exposeInMainWorld("api", {
   onSyncLog: (callback) =>
     ipcRenderer.on("sync:log", (event, message) => callback(message)),
   onSyncRefresh: (callback) => ipcRenderer.on("sync:refresh", () => callback()),
+  getUserSettings: () => ipcRenderer.invoke("settings:get"),
+  setAutoStart: (enabled) =>
+    ipcRenderer.invoke("settings:setAutoStart", enabled),
+  getAutoStart: () => ipcRenderer.invoke("settings:getAutoStart"),
 });

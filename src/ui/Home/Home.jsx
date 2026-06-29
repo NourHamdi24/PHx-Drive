@@ -55,12 +55,12 @@ const Home = ({ user, onLogout }) => {
         return <Files files={files} onRefresh={loadFiles} />;
       case "activity":
         return <Activity logs={syncLog} onClear={() => setSyncLog([])} />;
-      // case "conflicts":
-      //   return <Conflicts />;
-      // case "trash":
-      //   return <Trash />;
-      // case "settings":
-      //   return <Settings user={user} />;
+      case "conflicts":
+        return <Conflicts />;
+      case "trash":
+        return <Trash />;
+      case "settings":
+        return <Settings user={user} />;
       default:
         return <Files files={files} onRefresh={loadFiles} />;
     }
