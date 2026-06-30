@@ -1,6 +1,13 @@
 const fs = require("fs");
 const path = require("path");
-const { listFiles, downloadFile, uploadFile, createFolder } = require("./api");
+const {
+  listFiles,
+  downloadFile,
+  uploadFile,
+  createFolder,
+  permanentDelete,
+  listTrashedFiles,
+} = require("./api");
 const { getDatabase } = require("../db/database");
 
 // ─── List all files from Frappe recursively ────────────────
@@ -17,7 +24,6 @@ const listAllRemoteFiles = async (
     const itemPath = remotePath ? `${remotePath}/${item.title}` : item.title;
 
     if (item.is_group) {
-      // It's a folder — recurse into it
       const children = await listAllRemoteFiles(
         frappUrl,
         sessionCookie,
@@ -46,7 +52,6 @@ const listAllLocalFiles = (syncFolder, dir = syncFolder) => {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
 
   for (const entry of entries) {
-    // Skip hidden files and trash folder
     if (entry.name.startsWith(".")) continue;
 
     const fullPath = path.join(dir, entry.name);
@@ -72,13 +77,13 @@ const listAllLocalFiles = (syncFolder, dir = syncFolder) => {
 };
 
 // ─── Core sync function ────────────────────────────────────
-const runSync = async () => {
+const runSync = async ({ manual = false } = {}) => {
   const db = getDatabase();
   const user = db.prepare("SELECT * FROM users LIMIT 1").get();
 
   if (!user) {
     console.log("No user found. Skipping sync.");
-    return;
+    return { remoteTrashWarnings: [] };
   }
 
   const { frappe_url, session_cookie, root_folder_id, sync_folder_path } = user;
@@ -94,10 +99,11 @@ const runSync = async () => {
   );
   console.log(`Found ${remoteFiles.length} remote items`);
 
-  // Build a map for quick lookup
   const remoteMap = {};
+  const remoteByEntityName = new Set();
   for (const file of remoteFiles) {
     remoteMap[file.relativePath] = file;
+    remoteByEntityName.add(file.name);
   }
 
   // ─── Step 2: List local files ───────────────────────────
@@ -110,24 +116,56 @@ const runSync = async () => {
     .prepare("SELECT * FROM sync_state WHERE user_id = ?")
     .all(user.id);
   const stateMap = {};
+  const localPathStateMap = {};
   for (const state of syncStates) {
     stateMap[state.entity_name] = state;
+    if (state.local_path) localPathStateMap[state.local_path] = state;
+  }
+
+  // ─── Step 3.5: Push local deletions to remote ──────────
+  // Covers two cases:
+  //   'pending_delete' — file was deleted via the app UI in manual mode
+  //   'synced' with missing file — file was removed from disk since last sync (manual mode)
+  // In auto mode the watcher handles this in real-time; this step is a safety net.
+  const locallyDeletedEntities = new Set();
+  for (const state of syncStates) {
+    if (!state.local_path) continue;
+    const isPendingDelete = state.status === "pending_delete";
+    const isGoneFromDisk =
+      state.status === "synced" && !fs.existsSync(state.local_path);
+    if (!isPendingDelete && !isGoneFromDisk) continue;
+
+    console.log(`Local deletion detected: ${state.title}`);
+    if (remoteByEntityName.has(state.entity_name)) {
+      try {
+        await permanentDelete(frappe_url, session_cookie, [state.entity_name]);
+        console.log(`Permanently deleted remotely: ${state.title}`);
+      } catch (err) {
+        console.error(
+          `Failed remote permanent delete of ${state.entity_name}:`,
+          err.message,
+        );
+      }
+    }
+    db.prepare(
+      "DELETE FROM sync_state WHERE entity_name = ? AND user_id = ?",
+    ).run(state.entity_name, user.id);
+    locallyDeletedEntities.add(state.entity_name);
   }
 
   // ─── Step 4: Remote → Local (download missing/changed) ─
   console.log("Checking remote → local...");
   for (const file of remoteFiles) {
+    if (locallyDeletedEntities.has(file.name)) continue;
+
     const localPath = path.join(sync_folder_path, file.relativePath);
     const existingState = stateMap[file.name];
 
     if (file.is_group) {
-      // Create folder locally if it doesn't exist
       if (!fs.existsSync(localPath)) {
         fs.mkdirSync(localPath, { recursive: true });
         console.log(`Created folder: ${file.relativePath}`);
       }
-
-      // Save folder to sync state
       saveSyncState(db, user.id, file, localPath, "synced");
       continue;
     }
@@ -135,7 +173,6 @@ const runSync = async () => {
     const localExists = fs.existsSync(localPath);
 
     if (!localExists) {
-      // File missing locally → download it
       console.log(`Downloading: ${file.relativePath}`);
       fs.mkdirSync(path.dirname(localPath), { recursive: true });
       if (!file.mime_type && file.file_kind === "Document" && !file.file_ext) {
@@ -146,57 +183,50 @@ const runSync = async () => {
       }
       await downloadFile(frappe_url, session_cookie, file.name, localPath);
       saveSyncState(db, user.id, file, localPath, "synced");
-    } else if (existingState && file.modified !== existingState.modified) {
+    } else if (existingState) {
       const localStat = fs.statSync(localPath);
       const localModifiedTime = localStat.mtime.toISOString();
-
-      // Compare local modified time against what we last recorded
       const lastSynced = existingState.last_synced_at;
       const localChanged = localModifiedTime > lastSynced;
       const remoteChanged = file.modified !== existingState.modified;
 
-      if (localChanged && remoteChanged) {
-        // Both sides changed → conflict
-        console.log(`Conflict detected: ${file.relativePath}`);
-
-        // Save conflict to DB
-        const existingConflict = db
-          .prepare(
-            "SELECT id FROM conflicts WHERE entity_name = ? AND user_id = ? AND status = ?",
-          )
-          .get(file.name, user.id, "pending");
-
-        if (!existingConflict) {
-          db.prepare(
-            `
-        INSERT INTO conflicts 
-        (user_id, entity_name, title, local_path, local_modified, local_size, remote_modified, remote_size)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-          ).run(
-            user.id,
-            file.name,
-            file.title,
-            localPath,
-            localModifiedTime,
-            localStat.size,
-            file.modified,
-            file.file_size,
-          );
-        }
-
-        // Update sync state to conflict
-        saveSyncState(db, user.id, file, localPath, "conflict");
-      } else if (remoteChanged && !localChanged) {
-        // Only remote changed → download
+      if (remoteChanged && !localChanged) {
         console.log(`Remote update: ${file.relativePath}`);
         await downloadFile(frappe_url, session_cookie, file.name, localPath);
         saveSyncState(db, user.id, file, localPath, "synced");
+      } else if (localChanged && !remoteChanged) {
+        console.log(`Local edit detected, replacing remote: ${file.relativePath}`);
+        try {
+          await permanentDelete(frappe_url, session_cookie, [file.name]);
+        } catch (err) {
+          console.error(`Failed to delete old remote for ${file.relativePath}:`, err.message);
+        }
+        const parentId = existingState.parent_drive_entity || root_folder_id;
+        const uploaded = await uploadFile(
+          frappe_url,
+          session_cookie,
+          localPath,
+          path.basename(localPath),
+          parentId,
+        );
+        db.prepare(
+          "DELETE FROM sync_state WHERE entity_name = ? AND user_id = ?",
+        ).run(file.name, user.id);
+        saveSyncState(db, user.id, {
+          name: uploaded.name,
+          title: path.basename(localPath),
+          relativePath: file.relativePath,
+          modified: uploaded.modified || new Date().toISOString(),
+          file_size: localStat.size,
+          is_group: 0,
+          parent_drive_entity: parentId,
+        }, localPath, "synced");
+        console.log(`Re-uploaded local edit: ${file.relativePath}`);
       }
     }
   }
 
-  // ─── Step 5: Local → Remote (upload missing) ───────────
+  // ─── Step 5: Local → Remote (upload new; skip remote-deleted) ──
   console.log("Checking local → remote...");
   for (const [relativePath, localFile] of Object.entries(localFiles)) {
     const existsOnRemote = remoteFiles.find(
@@ -204,10 +234,22 @@ const runSync = async () => {
     );
 
     if (!existsOnRemote) {
+      const prevState = localPathStateMap[localFile.fullPath];
+
+      if (prevState) {
+        // File was previously known — remote side no longer has it.
+        // Mark as remote_deleted; do NOT upload (remote deletion doesn't affect local).
+        if (prevState.status === "synced") {
+          db.prepare(
+            "UPDATE sync_state SET status = 'remote_deleted' WHERE entity_name = ? AND user_id = ?",
+          ).run(prevState.entity_name, user.id);
+        }
+        continue;
+      }
+
       if (localFile.isFolder) {
-        // Create folder on Frappe
         const parentPath = path.dirname(relativePath);
-        const parentFolder = parentPath === "." ? remoteMap[parentPath] : null;
+        const parentFolder = parentPath === "." ? null : remoteMap[parentPath];
         const parentId = parentFolder ? parentFolder.name : root_folder_id;
 
         console.log(`Creating remote folder: ${relativePath}`);
@@ -233,7 +275,6 @@ const runSync = async () => {
           "synced",
         );
       } else {
-        // Upload file to Frappe
         const parentPath = path.dirname(relativePath);
         const parentFolder = parentPath === "." ? null : remoteMap[parentPath];
         const parentId = parentFolder ? parentFolder.name : root_folder_id;
@@ -266,13 +307,47 @@ const runSync = async () => {
     }
   }
 
-  // Update last synced timestamp
+  // ─── Update last synced timestamp ──────────────────────
   db.prepare("UPDATE users SET last_synced_at = ? WHERE id = ?").run(
     new Date().toISOString(),
     user.id,
   );
 
+  // ─── Step 6 (manual Sync Now only): Warn about remote-trashed files ──
+  // Check if any locally-present files are sitting in remote trash.
+  let remoteTrashWarnings = [];
+  if (manual) {
+    console.log("Checking remote trash for warnings...");
+    try {
+      const trashedRemoteFiles = await listTrashedFiles(frappe_url, session_cookie);
+      const remoteTrashedSet = new Set(trashedRemoteFiles.map((f) => f.name));
+
+      const remoteDeletedStates = db
+        .prepare(
+          "SELECT * FROM sync_state WHERE user_id = ? AND status = 'remote_deleted'",
+        )
+        .all(user.id);
+
+      for (const state of remoteDeletedStates) {
+        if (
+          remoteTrashedSet.has(state.entity_name) &&
+          state.local_path &&
+          fs.existsSync(state.local_path)
+        ) {
+          remoteTrashWarnings.push({
+            entityName: state.entity_name,
+            title: state.title,
+            localPath: state.local_path,
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch remote trash for warnings:", err.message);
+    }
+  }
+
   console.log("Sync complete.");
+  return { remoteTrashWarnings };
 };
 
 // ─── Helper: save or update sync state ────────────────────
@@ -283,12 +358,10 @@ const saveSyncState = (db, userId, file, localPath, status) => {
 
   if (existing) {
     db.prepare(
-      `
-      UPDATE sync_state 
-      SET title = ?, local_path = ?, modified = ?, file_size = ?, 
-          status = ?, last_synced_at = CURRENT_TIMESTAMP
-      WHERE entity_name = ?
-    `,
+      `UPDATE sync_state
+       SET title = ?, local_path = ?, modified = ?, file_size = ?,
+           status = ?, last_synced_at = CURRENT_TIMESTAMP
+       WHERE entity_name = ?`,
     ).run(
       file.title,
       localPath,
@@ -299,11 +372,9 @@ const saveSyncState = (db, userId, file, localPath, status) => {
     );
   } else {
     db.prepare(
-      `
-      INSERT INTO sync_state 
-      (user_id, entity_name, title, local_path, modified, file_size, is_group, parent_drive_entity, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `,
+      `INSERT INTO sync_state
+       (user_id, entity_name, title, local_path, modified, file_size, is_group, parent_drive_entity, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       userId,
       file.name,

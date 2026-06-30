@@ -1,59 +1,178 @@
 .container {
-  padding: 20px;
+  padding: 28px 32px;
   height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.title {
-  color: #000;
-  font-size: 15px;
-  margin: 0;
-}
-
-.clearBtn {
-  padding: 5px 12px;
-  border-radius: 5px;
-  border: 1px solid #2a2a2a;
-  background-color: #fff;
-  color: #666;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.clearBtn:hover {
-  background-color: #2a2a2a;
-  color: #aaa;
-}
-
-.logList {
-  flex: 1;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 24px;
+  box-sizing: border-box;
 }
 
-.logItem {
-  color: #040404;
+/* ─── Status Card ─────────────────────────────────────────── */
+.statusCard {
+  background: #fff;
+  border-radius: 16px;
+  padding: 22px 24px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
+}
+
+.statusIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.statusText {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.statusTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111;
+}
+
+.statusSub {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: 12px;
-  margin: 0;
-  padding: 6px 10px;
-  background-color: #b6b6b6;
-  border-radius: 4px;
-  line-height: 1.4;
+  color: #999;
+}
+
+/* ─── Section ─────────────────────────────────────────────── */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+}
+
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #b0b0b0;
+}
+
+.clearBtn {
+  font-size: 11px;
+  color: #b0b0b0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 5px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.clearBtn:hover {
+  color: #555;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* ─── Activity Card ───────────────────────────────────────── */
+.activityCard {
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
+}
+
+.activityItem {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 20px;
+  border-bottom: 1px solid #f2f2f2;
+}
+
+.activityItem:last-child {
+  border-bottom: none;
+}
+
+.activityIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.activityBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.activityFileName {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #111;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activityLabel {
+  font-size: 12px;
+  color: #999;
+}
+
+.activityLabelOnly {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #333;
+}
+
+.activityTime {
+  font-size: 12px;
+  color: #c0c0c0;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* ─── Empty state ─────────────────────────────────────────── */
+.emptyCard {
+  background: #fff;
+  border-radius: 16px;
+  padding: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
 }
 
 .empty {
-  color: #333;
   font-size: 13px;
-  text-align: center;
-  margin-top: 40px;
+  color: #c0c0c0;
+}
+
+/* ─── Spin animation ──────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinning {
+  animation: spin 1.2s linear infinite;
 }

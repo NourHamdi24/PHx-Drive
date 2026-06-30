@@ -2,7 +2,7 @@ const chokidar = require("chokidar");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
-const { uploadFile, createFolder, trashOrRestore } = require("./api");
+const { uploadFile, createFolder, permanentDelete } = require("./api");
 const { getDatabase } = require("../db/database");
 
 let watcher = null;
@@ -259,32 +259,15 @@ const startWatcher = (user, emitLog) => {
         return;
       }
 
-      // Trash on Frappe
-      await trashOrRestore(frappe_url, session_cookie, [
+      // Permanently delete on Frappe
+      await permanentDelete(frappe_url, session_cookie, [
         existingState.entity_name,
       ]);
 
-      // Record in trash table
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30);
-
+      // Remove from sync state entirely
       db.prepare(
-        `
-        INSERT INTO trash (user_id, entity_name, title, original_path, expires_at, source)
-        VALUES (?, ?, ?, ?, ?, 'local')
-      `,
-      ).run(
-        userId,
-        existingState.entity_name,
-        existingState.title,
-        filePath,
-        expiresAt.toISOString(),
-      );
-
-      // Update sync state to trashed
-      db.prepare(
-        "UPDATE sync_state SET status = ? WHERE entity_name = ? AND user_id = ?",
-      ).run("trashed", existingState.entity_name, userId);
+        "DELETE FROM sync_state WHERE entity_name = ? AND user_id = ?",
+      ).run(existingState.entity_name, userId);
 
       emitLog(`Deleted: ${path.basename(filePath)} ✅`);
       console.log(`Trashed on Frappe: ${relativePath}`);

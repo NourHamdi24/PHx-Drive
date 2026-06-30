@@ -1,44 +1,130 @@
 .sidebar {
-  width: 180px;
-  background-color: #fff;
-  border-right: 1px solid #222;
+  width: 240px;
+  min-width: 240px;
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
-  padding: 12px 8px;
-  gap: 4px;
+  height: 100%;
   flex-shrink: 0;
 }
 
-.tab {
+/* Brand */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.logo {
+  width: 40px;
+  height: 40px;
+  background-color: #b31313;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(179, 19, 19, 0.25);
+}
+
+.brandText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.brandTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.2;
+}
+
+.brandSubtitle {
+  font-size: 11px;
+  color: #9ca3af;
+  line-height: 1.2;
+}
+
+/* Nav */
+.menuLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: #9ca3af;
+  letter-spacing: 0.08em;
+  padding: 16px 20px 8px;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 10px;
+}
+
+.navItem {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
   border-radius: 8px;
   border: none;
-  background-color: transparent;
-  color: #666;
-  font-size: 13px;
+  background: transparent;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
   text-align: left;
   width: 100%;
-  transition: background-color 0.15s;
+  transition: background 0.12s, color 0.12s;
+  position: relative;
 }
 
-.tab:hover {
-  background-color: #1a1a1a;
-  color: #aaa;
+.navItem:hover {
+  background: #f9fafb;
+  color: #111827;
 }
 
 .active {
-  background-color: #ad2a2a;
-  color: #ffffff;
+  background: #fef2f2 !important;
+  color: #b31313 !important;
+  font-weight: 600;
 }
 
-.icon {
-  font-size: 15px;
+.navIcon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  opacity: 0.7;
 }
 
-.label {
-  font-weight: 500;
+.active .navIcon {
+  opacity: 1;
 }
+
+.navLabel {
+  flex: 1;
+}
+
+.badge {
+  background: #b31313;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 99px;
+  line-height: 1.6;
+}
+
+.chevron {
+  font-size: 16px;
+  color: #b31313;
+  line-height: 1;
+}
+

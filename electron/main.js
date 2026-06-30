@@ -19,13 +19,6 @@ const { startWatcher, stopWatcher } = require("../src/sync/watcher");
 const { startPolling, stopPolling } = require("../src/sync/poller");
 const { startScheduler } = require("../src/sync/scheduler");
 const { startQueueProcessor } = require("../src/sync/queueProcessor");
-const {
-  resolveKeepLocal,
-  resolveKeepFrappe,
-  resolveKeepBoth,
-  listConflicts,
-} = require("../src/sync/conflictHandler");
-
 let mainWindow = null;
 let tray = null;
 
@@ -33,6 +26,8 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    title: "PHx Drive",
+    icon: path.join(__dirname, "../build/logo.png"),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -99,7 +94,7 @@ app.whenReady().then(() => {
 
   // ─── Sync ───────────────────────────────────────────────
   ipcMain.handle("sync:run", async () => {
-    return await runSync();
+    return await runSync({ manual: true });
   });
 
   ipcMain.handle("sync:startWatcher", () => {
@@ -148,17 +143,75 @@ app.whenReady().then(() => {
     return { success: true };
   });
 
+  ipcMain.handle(
+    "sync:resolveRemoteDeletion",
+    async (event, entityName, decision) => {
+      const db = getDatabase();
+      const user = db.prepare("SELECT * FROM users LIMIT 1").get();
+      if (!user) return { success: false };
+
+      const state = db
+        .prepare(
+          "SELECT * FROM sync_state WHERE entity_name = ? AND user_id = ?",
+        )
+        .get(entityName, user.id);
+
+      if (decision === "restore") {
+        // Restore from remote trash, then re-download locally
+        const { trashOrRestore, downloadFile } = require("../src/sync/api");
+        await trashOrRestore(user.frappe_url, user.session_cookie, [
+          entityName,
+        ]);
+        if (state?.local_path) {
+          const fs = require("fs");
+          const path = require("path");
+          fs.mkdirSync(path.dirname(state.local_path), { recursive: true });
+          await downloadFile(
+            user.frappe_url,
+            user.session_cookie,
+            entityName,
+            state.local_path,
+          );
+        }
+        db.prepare(
+          "UPDATE sync_state SET status = 'synced' WHERE entity_name = ? AND user_id = ?",
+        ).run(entityName, user.id);
+      } else {
+        // "deleteLocally" — delete local copy; remote stays in trash
+        const fs = require("fs");
+        if (state?.local_path && fs.existsSync(state.local_path)) {
+          fs.unlinkSync(state.local_path);
+        }
+        db.prepare(
+          "DELETE FROM sync_state WHERE entity_name = ? AND user_id = ?",
+        ).run(entityName, user.id);
+      }
+
+      return { success: true };
+    },
+  );
+
   // ─── Files ──────────────────────────────────────────────
   ipcMain.handle("files:list", async () => {
     const db = getDatabase();
     const user = db.prepare("SELECT * FROM users LIMIT 1").get();
     if (!user) return [];
     const { listFiles } = require("../src/sync/api");
-    return await listFiles(
+    const remoteFiles = await listFiles(
       user.frappe_url,
       user.session_cookie,
       user.root_folder_id,
     );
+    // Hide files that are locally deleted but not yet synced to remote
+    const pendingDeletes = new Set(
+      db
+        .prepare(
+          "SELECT entity_name FROM sync_state WHERE user_id = ? AND status = 'pending_delete'",
+        )
+        .all(user.id)
+        .map((r) => r.entity_name),
+    );
+    return remoteFiles.filter((f) => !pendingDeletes.has(f.name));
   });
 
   ipcMain.handle("files:shareLink", (event, entityName) => {
@@ -168,63 +221,71 @@ app.whenReady().then(() => {
     return getShareLink(user.frappe_url, entityName);
   });
 
-  ipcMain.handle("files:listTrash", () => {
+  ipcMain.handle("files:listWithStatus", async () => {
     const db = getDatabase();
     const user = db.prepare("SELECT * FROM users LIMIT 1").get();
     if (!user) return [];
-    return db
-      .prepare("SELECT * FROM trash WHERE user_id = ? ORDER BY deleted_at DESC")
+    const { listFiles } = require("../src/sync/api");
+    const remoteFiles = await listFiles(
+      user.frappe_url,
+      user.session_cookie,
+      user.root_folder_id,
+    );
+    const syncStates = db
+      .prepare("SELECT * FROM sync_state WHERE user_id = ?")
       .all(user.id);
+    const stateMap = {};
+    const pendingDeletes = new Set();
+    for (const s of syncStates) {
+      stateMap[s.entity_name] = s;
+      if (s.status === "pending_delete") pendingDeletes.add(s.entity_name);
+    }
+    return remoteFiles
+      .filter((f) => !pendingDeletes.has(f.name))
+      .map((f) => ({
+        ...f,
+        syncStatus: stateMap[f.name]?.status || "pending",
+      }));
   });
 
-  ipcMain.handle("files:restore", async (event, entityName) => {
+  ipcMain.handle("trash:count", () => {
     const db = getDatabase();
     const user = db.prepare("SELECT * FROM users LIMIT 1").get();
-    const { trashOrRestore } = require("../src/sync/api");
-    await trashOrRestore(user.frappe_url, user.session_cookie, [entityName]);
-    db.prepare("DELETE FROM trash WHERE entity_name = ? AND user_id = ?").run(
-      entityName,
-      user.id,
-    );
-    db.prepare(
-      "UPDATE sync_state SET status = ? WHERE entity_name = ? AND user_id = ?",
-    ).run("synced", entityName, user.id);
+    if (!user) return 0;
+    const row = db
+      .prepare("SELECT COUNT(*) as count FROM trash WHERE user_id = ?")
+      .get(user.id);
+    return row?.count || 0;
+  });
+
+  ipcMain.handle("files:trash", async (event, entityName) => {
+    const db = getDatabase();
+    const user = db.prepare("SELECT * FROM users LIMIT 1").get();
+    if (!user) return { success: false };
+
+    const state = db
+      .prepare("SELECT * FROM sync_state WHERE entity_name = ? AND user_id = ?")
+      .get(entityName, user.id);
+
+    // Delete local file immediately
+    if (state?.local_path) {
+      const fs = require("fs");
+      if (fs.existsSync(state.local_path)) {
+        fs.unlinkSync(state.local_path);
+      }
+    }
+
+    if (user.sync_mode === "auto") {
+      // Auto mode: the file watcher detects the deletion and handles the remote delete.
+      // Nothing more to do here.
+    } else {
+      // Manual mode: queue the remote permanent delete for the next Sync Now.
+      db.prepare(
+        "UPDATE sync_state SET status = 'pending_delete' WHERE entity_name = ? AND user_id = ?",
+      ).run(entityName, user.id);
+    }
+
     return { success: true };
-  });
-
-  ipcMain.handle("files:permanentDelete", async (event, entityName) => {
-    const db = getDatabase();
-    const user = db.prepare("SELECT * FROM users LIMIT 1").get();
-    const { permanentDelete } = require("../src/sync/api");
-    await permanentDelete(user.frappe_url, user.session_cookie, [entityName]);
-    db.prepare("DELETE FROM trash WHERE entity_name = ? AND user_id = ?").run(
-      entityName,
-      user.id,
-    );
-    db.prepare(
-      "DELETE FROM sync_state WHERE entity_name = ? AND user_id = ?",
-    ).run(entityName, user.id);
-    return { success: true };
-  });
-
-  // ─── Conflicts ──────────────────────────────────────────
-  ipcMain.handle("conflicts:list", () => {
-    const db = getDatabase();
-    const user = db.prepare("SELECT * FROM users LIMIT 1").get();
-    if (!user) return [];
-    return listConflicts(user.id);
-  });
-
-  ipcMain.handle("conflicts:keepLocal", async (event, conflictId) => {
-    return await resolveKeepLocal(conflictId);
-  });
-
-  ipcMain.handle("conflicts:keepFrappe", async (event, conflictId) => {
-    return await resolveKeepFrappe(conflictId);
-  });
-
-  ipcMain.handle("conflicts:keepBoth", async (event, conflictId) => {
-    return await resolveKeepBoth(conflictId);
   });
 
   // ─── Settings ───────────────────────────────────────────
@@ -284,7 +345,11 @@ app.whenReady().then(() => {
   });
 
   // ─── System Tray ────────────────────────────────────────
-  tray = new Tray(nativeImage.createEmpty());
+  const trayIcon = nativeImage
+    .createFromPath(path.join(__dirname, "../build/logo.png"))
+    .resize({ width: 16, height: 16, quality: "best" });
+
+  tray = new Tray(trayIcon);
 
   const contextMenu = Menu.buildFromTemplate([
     {

@@ -1,73 +1,25 @@
 .header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 24px;
-  background-color: #fff;
-  border-bottom: 1px solid #222;
+  padding: 24px 28px 20px;
+  background: transparent;
   flex-shrink: 0;
 }
 
 .left {
   display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.logo {
-  background-color: #b31313;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  padding: 12px 16px;
-  border-radius: 6px;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .title {
-  color: #666;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+  line-height: 1.2;
 }
 
-.right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.email {
-  color: #555;
+.subtitle {
   font-size: 13px;
-}
-
-.syncBtn {
-  padding: 7px 16px;
-  border-radius: 6px;
-  border: none;
-  background-color: #b31313;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.syncBtn:disabled {
-  background-color: #2a2a2a;
-  color: #555;
-  cursor: not-allowed;
-}
-
-.logoutBtn {
-  padding: 7px 16px;
-  border-radius: 6px;
-  border: 1px solid #2a2a2a;
-  background-color: #fff;
-  color: #414141;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.logoutBtn:hover {
-  background-color: #2a2a2a;
-  color: #aaa;
+  color: #9ca3af;
+  margin: 0;
 }

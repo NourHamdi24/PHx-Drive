@@ -70,10 +70,14 @@ const Trash = () => {
           <span className={styles.icon}>📄</span>
           <span className={styles.fileName}>{item.title}</span>
           <span className={styles.colMeta}>
-            {new Date(item.deleted_at).toLocaleDateString()}
+            {item.deleted_at
+              ? new Date(item.deleted_at).toLocaleDateString()
+              : "—"}
           </span>
           <span className={styles.colMeta}>
-            {new Date(item.expires_at).toLocaleDateString()}
+            {item.expires_at
+              ? new Date(item.expires_at).toLocaleDateString()
+              : "—"}
           </span>
           <div className={styles.colActions}>
             <button

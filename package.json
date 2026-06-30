@@ -1,5 +1,6 @@
 {
   "name": "phx-drive",
+  "productName": "PHx Drive",
   "version": "1.0.0",
   "main": "electron/main.js",
   "type": "commonjs",
@@ -23,5 +24,19 @@
     "electron-builder": "^24.9.0",
     "vite": "^5.0.0",
     "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.pharaonx.phxdrive",
+    "productName": "PHx Drive",
+    "icon": "build/icon",
+    "win": {
+      "icon": "build/icon.ico"
+    },
+    "mac": {
+      "icon": "build/icon.icns"
+    },
+    "linux": {
+      "icon": "build/icon.png"
+    }
   }
 }
