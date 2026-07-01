@@ -24,27 +24,27 @@ const formatDate = (dateStr) => {
 };
 
 const FILE_TYPE_MAP = {
-  pdf:  { label: "PDF", bg: "#fee2e2", color: "#dc2626" },
-  zip:  { label: "ZIP", bg: "#ffedd5", color: "#ea580c" },
-  rar:  { label: "ZIP", bg: "#ffedd5", color: "#ea580c" },
+  pdf: { label: "PDF", bg: "#fee2e2", color: "#dc2626" },
+  zip: { label: "ZIP", bg: "#ffedd5", color: "#ea580c" },
+  rar: { label: "ZIP", bg: "#ffedd5", color: "#ea580c" },
   "7z": { label: "ZIP", bg: "#ffedd5", color: "#ea580c" },
   xlsx: { label: "XLS", bg: "#dcfce7", color: "#16a34a" },
-  xls:  { label: "XLS", bg: "#dcfce7", color: "#16a34a" },
-  csv:  { label: "CSV", bg: "#dcfce7", color: "#16a34a" },
+  xls: { label: "XLS", bg: "#dcfce7", color: "#16a34a" },
+  csv: { label: "CSV", bg: "#dcfce7", color: "#16a34a" },
   docx: { label: "DOC", bg: "#fee2e2", color: "#dc2626" },
-  doc:  { label: "DOC", bg: "#fee2e2", color: "#dc2626" },
+  doc: { label: "DOC", bg: "#fee2e2", color: "#dc2626" },
   pptx: { label: "PPT", bg: "#ffedd5", color: "#ea580c" },
-  ppt:  { label: "PPT", bg: "#ffedd5", color: "#ea580c" },
-  txt:  { label: "TXT", bg: "#f3f4f6", color: "#6b7280" },
-  md:   { label: "MD",  bg: "#f3f4f6", color: "#6b7280" },
-  jpg:  { label: "IMG", bg: "#dbeafe", color: "#2563eb" },
+  ppt: { label: "PPT", bg: "#ffedd5", color: "#ea580c" },
+  txt: { label: "TXT", bg: "#f3f4f6", color: "#6b7280" },
+  md: { label: "MD", bg: "#f3f4f6", color: "#6b7280" },
+  jpg: { label: "IMG", bg: "#dbeafe", color: "#2563eb" },
   jpeg: { label: "IMG", bg: "#dbeafe", color: "#2563eb" },
-  png:  { label: "IMG", bg: "#dbeafe", color: "#2563eb" },
-  gif:  { label: "GIF", bg: "#dbeafe", color: "#2563eb" },
+  png: { label: "IMG", bg: "#dbeafe", color: "#2563eb" },
+  gif: { label: "GIF", bg: "#dbeafe", color: "#2563eb" },
   webp: { label: "IMG", bg: "#dbeafe", color: "#2563eb" },
-  mp4:  { label: "VID", bg: "#ede9fe", color: "#7c3aed" },
-  mov:  { label: "VID", bg: "#ede9fe", color: "#7c3aed" },
-  avi:  { label: "VID", bg: "#ede9fe", color: "#7c3aed" },
+  mp4: { label: "VID", bg: "#ede9fe", color: "#7c3aed" },
+  mov: { label: "VID", bg: "#ede9fe", color: "#7c3aed" },
+  avi: { label: "VID", bg: "#ede9fe", color: "#7c3aed" },
 };
 
 const FileIcon = ({ title, isGroup }) => {
@@ -56,10 +56,21 @@ const FileIcon = ({ title, isGroup }) => {
     );
   }
   const ext = title?.split(".").pop()?.toLowerCase() || "";
-  const info = FILE_TYPE_MAP[ext] || { label: "FILE", bg: "#f3f4f6", color: "#6b7280" };
+  const info = FILE_TYPE_MAP[ext] || {
+    label: "FILE",
+    bg: "#f3f4f6",
+    color: "#6b7280",
+  };
   return (
     <div className={styles.fileIcon} style={{ background: info.bg }}>
-      <span style={{ color: info.color, fontSize: 9, fontWeight: 700, letterSpacing: "0.02em" }}>
+      <span
+        style={{
+          color: info.color,
+          fontSize: 9,
+          fontWeight: 700,
+          letterSpacing: "0.02em",
+        }}
+      >
         {info.label}
       </span>
     </div>
@@ -67,12 +78,49 @@ const FileIcon = ({ title, isGroup }) => {
 };
 
 const STATUS_CONFIG = {
-  synced:         { label: "Synced",     icon: "✓", bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
-  pending:        { label: "Pending",    icon: "○", bg: "#f9fafb", color: "#9ca3af", border: "#e5e7eb" },
-  remote_deleted: { label: "Not synced", icon: "↕", bg: "#fff7ed", color: "#ea580c", border: "#fed7aa" },
-  conflict:       { label: "Conflict",   icon: "⚠", bg: "#fce7f3", color: "#dc2626", border: "#fbcfe8" },
-  error:          { label: "Error",      icon: "!", bg: "#fff7ed", color: "#ea580c", border: "#fed7aa" },
-  syncing:        { label: "Syncing",    icon: "↻", bg: "#fff7ed", color: "#ea580c", border: "#fed7aa", spin: true },
+  synced: {
+    label: "Synced",
+    icon: "✓",
+    bg: "#f0fdf4",
+    color: "#16a34a",
+    border: "#bbf7d0",
+  },
+  pending: {
+    label: "Pending",
+    icon: "○",
+    bg: "#f9fafb",
+    color: "#9ca3af",
+    border: "#e5e7eb",
+  },
+  remote_deleted: {
+    label: "Not synced",
+    icon: "↕",
+    bg: "#fff7ed",
+    color: "#ea580c",
+    border: "#fed7aa",
+  },
+  conflict: {
+    label: "Conflict",
+    icon: "⚠",
+    bg: "#fce7f3",
+    color: "#dc2626",
+    border: "#fbcfe8",
+  },
+  error: {
+    label: "Error",
+    icon: "!",
+    bg: "#fff7ed",
+    color: "#ea580c",
+    border: "#fed7aa",
+  },
+  syncing: {
+    label: "Syncing",
+    icon: "↻",
+    bg: "#fff7ed",
+    color: "#ea580c",
+    border: "#fed7aa",
+    spin: true,
+  },
 };
 
 const StatusBadge = ({ status }) => {
@@ -94,21 +142,43 @@ const StatusBadge = ({ status }) => {
 
 const SearchIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-    <circle cx="11" cy="11" r="8" stroke="#9ca3af" strokeWidth="2"/>
-    <path d="M21 21l-4.35-4.35" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round"/>
+    <circle cx="11" cy="11" r="8" stroke="#9ca3af" strokeWidth="2" />
+    <path
+      d="M21 21l-4.35-4.35"
+      stroke="#9ca3af"
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
   </svg>
 );
 
 const SyncIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-    <path d="M21 2v6h-6M3 12a9 9 0 0115-6.7L21 8M3 22v-6h6M21 12a9 9 0 01-15 6.7L3 16"
-      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path
+      d="M21 2v6h-6M3 12a9 9 0 0115-6.7L21 8M3 22v-6h6M21 12a9 9 0 01-15 6.7L3 16"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </svg>
 );
 
 const ChevronIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, marginLeft: "auto" }}>
-    <path d="M9 18l6-6-6-6" stroke="#d1d5db" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    style={{ flexShrink: 0, marginLeft: "auto" }}
+  >
+    <path
+      d="M9 18l6-6-6-6"
+      stroke="#d1d5db"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </svg>
 );
 
@@ -134,7 +204,7 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
   });
 
   const filtered = levelItems.filter((f) =>
-    (f.title || "").toLowerCase().includes(search.toLowerCase())
+    (f.title || "").toLowerCase().includes(search.toLowerCase()),
   );
 
   const handleFolderOpen = (folder) => {
@@ -158,7 +228,8 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
   };
 
   const handleTrash = async (entityName) => {
-    if (!confirm("Permanently delete this item? This cannot be undone.")) return;
+    if (!confirm("Permanently delete this item? This cannot be undone."))
+      return;
     setTrashing(entityName);
     try {
       await window.api.trashFile(entityName);
@@ -239,8 +310,8 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
               {search
                 ? "No items match your search"
                 : currentFolderId
-                ? "This folder is empty"
-                : "No files yet"}
+                  ? "This folder is empty"
+                  : "No files yet"}
             </p>
             <p className={styles.emptySubtext}>
               {!search &&
@@ -276,7 +347,6 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
                       </div>
                     )}
                   </div>
-                  {file.is_group && <ChevronIcon />}
                 </div>
                 <span className={styles.colSize}>
                   {file.is_group ? "—" : formatSize(file.file_size)}
