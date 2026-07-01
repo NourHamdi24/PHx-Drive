@@ -250,8 +250,8 @@ app.whenReady().then(() => {
     const db = getDatabase();
     const user = db.prepare("SELECT * FROM users LIMIT 1").get();
     if (!user) return [];
-    const { listFiles } = require("../src/sync/api");
-    const remoteFiles = await listFiles(
+    const { listAllRemoteFiles } = require("../src/sync/sync");
+    const remoteFiles = await listAllRemoteFiles(
       user.frappe_url,
       user.session_cookie,
       user.root_folder_id,
@@ -292,23 +292,34 @@ app.whenReady().then(() => {
       .prepare("SELECT * FROM sync_state WHERE entity_name = ? AND user_id = ?")
       .get(entityName, user.id);
 
-    // Delete local file immediately
+    // Delete local path immediately (file or folder)
     if (state?.local_path) {
       const fs = require("fs");
       if (fs.existsSync(state.local_path)) {
-        fs.unlinkSync(state.local_path);
+        const stat = fs.statSync(state.local_path);
+        if (stat.isDirectory()) {
+          fs.rmSync(state.local_path, { recursive: true, force: true });
+        } else {
+          fs.unlinkSync(state.local_path);
+        }
       }
     }
 
-    if (user.sync_mode === "auto") {
-      // Auto mode: the file watcher detects the deletion and handles the remote delete.
-      // Nothing more to do here.
-    } else {
-      // Manual mode: queue the remote permanent delete for the next Sync Now.
+    // Mark this entity and all descendants as pending_delete (both modes).
+    // Hides them from the UI immediately; the actual remote deletion is handled
+    // by the watcher (auto) or the next Sync Now (manual).
+    const markPendingDelete = (name) => {
       db.prepare(
         "UPDATE sync_state SET status = 'pending_delete' WHERE entity_name = ? AND user_id = ?",
-      ).run(entityName, user.id);
-    }
+      ).run(name, user.id);
+      const children = db
+        .prepare(
+          "SELECT entity_name FROM sync_state WHERE parent_drive_entity = ? AND user_id = ?",
+        )
+        .all(name, user.id);
+      for (const child of children) markPendingDelete(child.entity_name);
+    };
+    markPendingDelete(entityName);
 
     return { success: true };
   });

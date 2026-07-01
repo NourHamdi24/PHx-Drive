@@ -67,12 +67,12 @@ const FileIcon = ({ title, isGroup }) => {
 };
 
 const STATUS_CONFIG = {
-  synced:         { label: "Synced",    icon: "✓",  bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
-  pending:        { label: "Pending",   icon: "○",  bg: "#f9fafb", color: "#9ca3af", border: "#e5e7eb" },
-  remote_deleted: { label: "Not synced",icon: "↕",  bg: "#fff7ed", color: "#ea580c", border: "#fed7aa" },
-  conflict:       { label: "Conflict",  icon: "⚠",  bg: "#fce7f3", color: "#dc2626", border: "#fbcfe8" },
-  error:          { label: "Error",     icon: "!",  bg: "#fff7ed", color: "#ea580c", border: "#fed7aa" },
-  syncing:        { label: "Syncing",   icon: "↻",  bg: "#fff7ed", color: "#ea580c", border: "#fed7aa", spin: true },
+  synced:         { label: "Synced",     icon: "✓", bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
+  pending:        { label: "Pending",    icon: "○", bg: "#f9fafb", color: "#9ca3af", border: "#e5e7eb" },
+  remote_deleted: { label: "Not synced", icon: "↕", bg: "#fff7ed", color: "#ea580c", border: "#fed7aa" },
+  conflict:       { label: "Conflict",   icon: "⚠", bg: "#fce7f3", color: "#dc2626", border: "#fbcfe8" },
+  error:          { label: "Error",      icon: "!", bg: "#fff7ed", color: "#ea580c", border: "#fed7aa" },
+  syncing:        { label: "Syncing",    icon: "↻", bg: "#fff7ed", color: "#ea580c", border: "#fed7aa", spin: true },
 };
 
 const StatusBadge = ({ status }) => {
@@ -106,12 +106,51 @@ const SyncIcon = () => (
   </svg>
 );
 
+const ChevronIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, marginLeft: "auto" }}>
+    <path d="M9 18l6-6-6-6" stroke="#d1d5db" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
 // ─── Main component ─────────────────────────────────────────
 
 const Files = ({ files, onRefresh, syncing, onSync }) => {
   const [search, setSearch] = useState("");
   const [trashing, setTrashing] = useState(null);
+  const [folderStack, setFolderStack] = useState([]);
 
+  // ─── Navigation helpers ────────────────────────────────
+  const allNames = new Set((files || []).map((f) => f.name));
+  const currentFolderId =
+    folderStack.length > 0 ? folderStack[folderStack.length - 1].name : null;
+
+  // Show only items that belong to the current navigation level
+  const levelItems = (files || []).filter((f) => {
+    if (currentFolderId === null) {
+      // Root: items whose parent is not any other item in the list
+      return !allNames.has(f.parent_drive_entity);
+    }
+    return f.parent_drive_entity === currentFolderId;
+  });
+
+  const filtered = levelItems.filter((f) =>
+    (f.title || "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleFolderOpen = (folder) => {
+    setFolderStack((prev) => [
+      ...prev,
+      { name: folder.name, title: folder.title },
+    ]);
+    setSearch("");
+  };
+
+  const handleBreadcrumbNav = (index) => {
+    setFolderStack((prev) => (index < 0 ? [] : prev.slice(0, index + 1)));
+    setSearch("");
+  };
+
+  // ─── Actions ───────────────────────────────────────────
   const handleShare = async (entityName) => {
     const link = await window.api.getShareLink(entityName);
     navigator.clipboard.writeText(link);
@@ -119,7 +158,7 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
   };
 
   const handleTrash = async (entityName) => {
-    if (!confirm("Permanently delete this file? This cannot be undone.")) return;
+    if (!confirm("Permanently delete this item? This cannot be undone.")) return;
     setTrashing(entityName);
     try {
       await window.api.trashFile(entityName);
@@ -130,10 +169,6 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
       setTrashing(null);
     }
   };
-
-  const filtered = (files || []).filter((f) =>
-    (f.title || "").toLowerCase().includes(search.toLowerCase())
-  );
 
   const isFileSyncing = (file) =>
     syncing && (file.syncStatus === "pending" || file.syncStatus === "syncing");
@@ -165,15 +200,52 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
         </div>
       </div>
 
+      {/* Breadcrumb */}
+      <div className={styles.breadcrumb}>
+        <button
+          className={
+            folderStack.length === 0
+              ? styles.breadcrumbCurrent
+              : styles.breadcrumbNav
+          }
+          onClick={() => handleBreadcrumbNav(-1)}
+          disabled={folderStack.length === 0}
+        >
+          Home
+        </button>
+        {folderStack.map((f, i) => (
+          <span key={f.name} className={styles.breadcrumbSegment}>
+            <span className={styles.breadcrumbSep}>›</span>
+            <button
+              className={
+                i === folderStack.length - 1
+                  ? styles.breadcrumbCurrent
+                  : styles.breadcrumbNav
+              }
+              onClick={() => handleBreadcrumbNav(i)}
+              disabled={i === folderStack.length - 1}
+            >
+              {f.title}
+            </button>
+          </span>
+        ))}
+      </div>
+
       {/* Table */}
       <div className={styles.card}>
         {filtered.length === 0 ? (
           <div className={styles.empty}>
             <p className={styles.emptyText}>
-              {search ? "No files match your search" : "No files yet"}
+              {search
+                ? "No items match your search"
+                : currentFolderId
+                ? "This folder is empty"
+                : "No files yet"}
             </p>
             <p className={styles.emptySubtext}>
-              {!search && "Add files to your sync folder or upload via Frappe Drive"}
+              {!search &&
+                !currentFolderId &&
+                "Add files to your sync folder or upload via Frappe Drive"}
             </p>
           </div>
         ) : (
@@ -187,7 +259,13 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
             </div>
 
             {filtered.map((file) => (
-              <div key={file.name} className={styles.row}>
+              <div
+                key={file.name}
+                className={`${styles.row} ${file.is_group ? styles.folderRow : ""}`}
+                onClick={
+                  file.is_group ? () => handleFolderOpen(file) : undefined
+                }
+              >
                 <div className={styles.colName}>
                   <FileIcon title={file.title} isGroup={file.is_group} />
                   <div className={styles.nameBlock}>
@@ -198,9 +276,10 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
                       </div>
                     )}
                   </div>
+                  {file.is_group && <ChevronIcon />}
                 </div>
                 <span className={styles.colSize}>
-                  {formatSize(file.file_size)}
+                  {file.is_group ? "—" : formatSize(file.file_size)}
                 </span>
                 <span className={styles.colDate}>
                   {formatDate(file.modified)}
@@ -210,19 +289,24 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
                     status={isFileSyncing(file) ? "syncing" : file.syncStatus}
                   />
                 </span>
-                <div className={styles.colActions}>
-                  <button
-                    className={styles.shareBtn}
-                    onClick={() => handleShare(file.name)}
-                    title="Copy share link"
-                  >
-                    Copy Link
-                  </button>
+                <div
+                  className={styles.colActions}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {!file.is_group && (
+                    <button
+                      className={styles.shareBtn}
+                      onClick={() => handleShare(file.name)}
+                      title="Copy share link"
+                    >
+                      Copy Link
+                    </button>
+                  )}
                   <button
                     className={styles.trashBtn}
                     onClick={() => handleTrash(file.name)}
                     disabled={trashing === file.name}
-                    title="Delete file"
+                    title="Delete"
                   >
                     {trashing === file.name ? "…" : "Delete"}
                   </button>

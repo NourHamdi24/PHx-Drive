@@ -60,8 +60,8 @@ const listAllLocalFiles = (syncFolder, dir = syncFolder) => {
       .replace(/\\/g, "/");
 
     if (entry.isDirectory()) {
-      Object.assign(files, listAllLocalFiles(syncFolder, fullPath));
       files[relativePath] = { isFolder: true, fullPath };
+      Object.assign(files, listAllLocalFiles(syncFolder, fullPath));
     } else {
       const stat = fs.statSync(fullPath);
       files[relativePath] = {
@@ -259,6 +259,7 @@ const runSync = async ({ manual = false } = {}) => {
           path.basename(relativePath),
           parentId,
         );
+        remoteMap[relativePath] = { name: created.name };
         saveSyncState(
           db,
           user.id,

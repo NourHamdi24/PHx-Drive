@@ -277,6 +277,46 @@ const startWatcher = (user, emitLog) => {
     }
   });
 
+  // ─── Folder Deleted ──────────────────────────────────────
+  watcher.on("unlinkDir", async (dirPath) => {
+    if (!isAutoMode()) return;
+    if (skipList.has(dirPath)) return;
+
+    const db = getDatabase();
+    const relativePath = path
+      .relative(sync_folder_path, dirPath)
+      .replace(/\\/g, "/");
+    console.log(`Folder deleted locally: ${relativePath}`);
+    emitLog(`Deleting folder: ${path.basename(dirPath)}`);
+
+    try {
+      const existingState = db
+        .prepare(
+          "SELECT * FROM sync_state WHERE local_path = ? AND user_id = ?",
+        )
+        .get(dirPath, userId);
+
+      if (!existingState) {
+        console.log(`No sync state found for deleted folder: ${relativePath}`);
+        return;
+      }
+
+      await permanentDelete(frappe_url, session_cookie, [
+        existingState.entity_name,
+      ]);
+
+      db.prepare(
+        "DELETE FROM sync_state WHERE entity_name = ? AND user_id = ?",
+      ).run(existingState.entity_name, userId);
+
+      emitLog(`Deleted folder: ${path.basename(dirPath)} ✅`);
+      console.log(`Folder deleted on Frappe: ${relativePath}`);
+    } catch (err) {
+      emitLog(`Folder delete failed: ${path.basename(dirPath)} ❌`);
+      console.error(`Folder delete failed for ${relativePath}:`, err.message);
+    }
+  });
+
   // ─── Folder Added ────────────────────────────────────────
   watcher.on("addDir", async (dirPath) => {
     if (!isAutoMode()) return;
