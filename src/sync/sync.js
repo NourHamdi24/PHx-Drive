@@ -314,37 +314,35 @@ const runSync = async ({ manual = false } = {}) => {
     user.id,
   );
 
-  // ─── Step 6 (manual Sync Now only): Warn about remote-trashed files ──
-  // Check if any locally-present files are sitting in remote trash.
+  // ─── Step 6: Warn about remote-deleted files ───────────────
+  // Always run — both manual Sync Now and auto polling need to surface these.
   let remoteTrashWarnings = [];
-  if (manual) {
-    console.log("Checking remote trash for warnings...");
-    try {
-      const trashedRemoteFiles = await listTrashedFiles(frappe_url, session_cookie);
-      const remoteTrashedSet = new Set(trashedRemoteFiles.map((f) => f.name));
+  console.log("Checking remote trash for warnings...");
+  try {
+    const trashedRemoteFiles = await listTrashedFiles(frappe_url, session_cookie);
+    const remoteTrashedSet = new Set(trashedRemoteFiles.map((f) => f.name));
 
-      const remoteDeletedStates = db
-        .prepare(
-          "SELECT * FROM sync_state WHERE user_id = ? AND status = 'remote_deleted'",
-        )
-        .all(user.id);
+    const remoteDeletedStates = db
+      .prepare(
+        "SELECT * FROM sync_state WHERE user_id = ? AND status = 'remote_deleted'",
+      )
+      .all(user.id);
 
-      for (const state of remoteDeletedStates) {
-        if (
-          remoteTrashedSet.has(state.entity_name) &&
-          state.local_path &&
-          fs.existsSync(state.local_path)
-        ) {
-          remoteTrashWarnings.push({
-            entityName: state.entity_name,
-            title: state.title,
-            localPath: state.local_path,
-          });
-        }
+    for (const state of remoteDeletedStates) {
+      if (
+        remoteTrashedSet.has(state.entity_name) &&
+        state.local_path &&
+        fs.existsSync(state.local_path)
+      ) {
+        remoteTrashWarnings.push({
+          entityName: state.entity_name,
+          title: state.title,
+          localPath: state.local_path,
+        });
       }
-    } catch (err) {
-      console.error("Failed to fetch remote trash for warnings:", err.message);
     }
+  } catch (err) {
+    console.error("Failed to fetch remote trash for warnings:", err.message);
   }
 
   console.log("Sync complete.");

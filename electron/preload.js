@@ -43,6 +43,11 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.on("sync:refresh", handler);
     return () => ipcRenderer.removeListener("sync:refresh", handler);
   },
+  onRemoteDeletedWarnings: (callback) => {
+    const handler = (event, warnings) => callback(warnings);
+    ipcRenderer.on("sync:remoteDeletedWarnings", handler);
+    return () => ipcRenderer.removeListener("sync:remoteDeletedWarnings", handler);
+  },
   getUserSettings: () => ipcRenderer.invoke("settings:get"),
   setAutoStart: (enabled) =>
     ipcRenderer.invoke("settings:setAutoStart", enabled),

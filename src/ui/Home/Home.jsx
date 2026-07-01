@@ -121,9 +121,16 @@ const Home = ({ user, onLogout }) => {
     loadFiles();
     const offLog = window.api.onSyncLog((message) => addLog(message));
     const offRefresh = window.api.onSyncRefresh(() => loadFiles());
+    const offWarnings = window.api.onRemoteDeletedWarnings((warnings) => {
+      setRemoteTrashWarnings((prev) => {
+        const existing = new Set(prev.map((w) => w.entityName));
+        return [...prev, ...warnings.filter((w) => !existing.has(w.entityName))];
+      });
+    });
     return () => {
       offLog?.();
       offRefresh?.();
+      offWarnings?.();
     };
   }, []);
 

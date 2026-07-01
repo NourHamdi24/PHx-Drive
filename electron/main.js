@@ -159,6 +159,11 @@ app.whenReady().then(() => {
           mainWindow.webContents.send("sync:refresh");
         }
       },
+      (warnings) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("sync:remoteDeletedWarnings", warnings);
+        }
+      },
     );
     return { success: true };
   });
@@ -360,6 +365,11 @@ app.whenReady().then(() => {
         () => {
           if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send("sync:refresh");
+          }
+        },
+        (warnings) => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send("sync:remoteDeletedWarnings", warnings);
           }
         },
       );
