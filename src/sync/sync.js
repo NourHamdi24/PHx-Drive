@@ -388,4 +388,4 @@ const saveSyncState = (db, userId, file, localPath, status) => {
   }
 };
 
-module.exports = { runSync, listAllRemoteFiles, listAllLocalFiles };
+module.exports = { runSync, listAllRemoteFiles, listAllLocalFiles, saveSyncState };

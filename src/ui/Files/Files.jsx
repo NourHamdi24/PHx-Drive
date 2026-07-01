@@ -99,6 +99,13 @@ const STATUS_CONFIG = {
     color: "#ea580c",
     border: "#fed7aa",
   },
+  local_only: {
+    label: "Local only",
+    icon: "⌂",
+    bg: "#f5f3ff",
+    color: "#6d28d9",
+    border: "#ddd6fe",
+  },
   conflict: {
     label: "Conflict",
     icon: "⚠",
@@ -187,6 +194,7 @@ const ChevronIcon = () => (
 const Files = ({ files, onRefresh, syncing, onSync }) => {
   const [search, setSearch] = useState("");
   const [trashing, setTrashing] = useState(null);
+  const [resyncing, setResyncing] = useState(null);
   const [folderStack, setFolderStack] = useState([]);
 
   // ─── Navigation helpers ────────────────────────────────
@@ -225,6 +233,18 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
     const link = await window.api.getShareLink(entityName);
     navigator.clipboard.writeText(link);
     alert("Link copied to clipboard!");
+  };
+
+  const handleResync = async (entityName) => {
+    setResyncing(entityName);
+    try {
+      await window.api.resyncLocalOnly(entityName);
+      await onRefresh();
+    } catch (err) {
+      console.error("Resync failed:", err);
+    } finally {
+      setResyncing(null);
+    }
   };
 
   const handleTrash = async (entityName) => {
@@ -363,13 +383,23 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
                   className={styles.colActions}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {!file.is_group && (
+                  {!file.is_group && file.syncStatus !== "local_only" && (
                     <button
                       className={styles.shareBtn}
                       onClick={() => handleShare(file.name)}
                       title="Copy share link"
                     >
                       Copy Link
+                    </button>
+                  )}
+                  {file.syncStatus === "local_only" && (
+                    <button
+                      className={styles.shareBtn}
+                      onClick={() => handleResync(file.name)}
+                      disabled={resyncing === file.name}
+                      title="Upload this file and resume syncing it"
+                    >
+                      {resyncing === file.name ? "…" : "Sync to Cloud"}
                     </button>
                   )}
                   <button

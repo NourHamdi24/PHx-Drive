@@ -206,6 +206,11 @@ app.whenReady().then(() => {
         db.prepare(
           "UPDATE sync_state SET status = 'synced' WHERE entity_name = ? AND user_id = ?",
         ).run(entityName, user.id);
+      } else if (decision === "localOnly") {
+        // Keep the local copy only; stop uploading it and leave the remote in trash.
+        db.prepare(
+          "UPDATE sync_state SET status = 'local_only' WHERE entity_name = ? AND user_id = ?",
+        ).run(entityName, user.id);
       } else {
         // "deleteLocally" — delete local copy; remote stays in trash
         const fs = require("fs");
@@ -220,6 +225,62 @@ app.whenReady().then(() => {
       return { success: true };
     },
   );
+
+  // Re-enable syncing for a "local only" file: upload it to remote as a
+  // fresh entity and go back to normal two-way sync.
+  ipcMain.handle("files:resyncLocalOnly", async (event, entityName) => {
+    const db = getDatabase();
+    const user = db.prepare("SELECT * FROM users LIMIT 1").get();
+    if (!user) return { success: false };
+
+    const state = db
+      .prepare("SELECT * FROM sync_state WHERE entity_name = ? AND user_id = ?")
+      .get(entityName, user.id);
+    if (!state?.local_path) return { success: false };
+
+    const fs = require("fs");
+    if (!fs.existsSync(state.local_path)) return { success: false };
+
+    const { uploadFile, createFolder } = require("../src/sync/api");
+    const { saveSyncState } = require("../src/sync/sync");
+    const parentId = state.parent_drive_entity || user.root_folder_id;
+
+    const uploaded = state.is_group
+      ? await createFolder(
+          user.frappe_url,
+          user.session_cookie,
+          state.title,
+          parentId,
+        )
+      : await uploadFile(
+          user.frappe_url,
+          user.session_cookie,
+          state.local_path,
+          state.title,
+          parentId,
+        );
+
+    db.prepare(
+      "DELETE FROM sync_state WHERE entity_name = ? AND user_id = ?",
+    ).run(entityName, user.id);
+
+    saveSyncState(
+      db,
+      user.id,
+      {
+        name: uploaded.name,
+        title: state.title,
+        modified: uploaded.modified || new Date().toISOString(),
+        file_size: state.is_group ? null : fs.statSync(state.local_path).size,
+        is_group: state.is_group,
+        parent_drive_entity: parentId,
+      },
+      state.local_path,
+      "synced",
+    );
+
+    return { success: true };
+  });
 
   // ─── Files ──────────────────────────────────────────────
   ipcMain.handle("files:list", async () => {
@@ -270,12 +331,31 @@ app.whenReady().then(() => {
       stateMap[s.entity_name] = s;
       if (s.status === "pending_delete") pendingDeletes.add(s.entity_name);
     }
-    return remoteFiles
+    const remoteList = remoteFiles
       .filter((f) => !pendingDeletes.has(f.name))
       .map((f) => ({
         ...f,
         syncStatus: stateMap[f.name]?.status || "pending",
       }));
+
+    // Local-only files no longer exist on the remote (it's trashed there),
+    // so listAllRemoteFiles won't return them — surface them from sync_state.
+    const remoteNames = new Set(remoteFiles.map((f) => f.name));
+    const localOnlyFiles = syncStates
+      .filter(
+        (s) => s.status === "local_only" && !remoteNames.has(s.entity_name),
+      )
+      .map((s) => ({
+        name: s.entity_name,
+        title: s.title,
+        modified: s.modified,
+        file_size: s.file_size,
+        is_group: s.is_group,
+        parent_drive_entity: s.parent_drive_entity,
+        syncStatus: "local_only",
+      }));
+
+    return [...remoteList, ...localOnlyFiles];
   });
 
   ipcMain.handle("trash:count", () => {

@@ -24,6 +24,8 @@ contextBridge.exposeInMainWorld("api", {
   runSync: () => ipcRenderer.invoke("sync:run"),
   resolveRemoteDeletion: (entityName, decision) =>
     ipcRenderer.invoke("sync:resolveRemoteDeletion", entityName, decision),
+  resyncLocalOnly: (entityName) =>
+    ipcRenderer.invoke("files:resyncLocalOnly", entityName),
   startWatcher: () => ipcRenderer.invoke("sync:startWatcher"),
   stopWatcher: () => ipcRenderer.invoke("sync:stopWatcher"),
   startPolling: () => ipcRenderer.invoke("sync:startPolling"),

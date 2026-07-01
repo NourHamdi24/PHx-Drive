@@ -109,7 +109,7 @@ const Home = ({ user, onLogout }) => {
       setRemoteTrashWarnings((prev) =>
         prev.filter((d) => d.entityName !== entityName),
       );
-      if (decision === "restore") await loadFiles();
+      if (decision === "restore" || decision === "localOnly") await loadFiles();
     } catch (err) {
       console.error("Failed to resolve remote trash warning:", err);
     } finally {
@@ -192,6 +192,13 @@ const Home = ({ user, onLogout }) => {
                       disabled={resolvingId === d.entityName}
                     >
                       {resolvingId === d.entityName ? "…" : "Restore on Remote"}
+                    </button>
+                    <button
+                      className={styles.localOnlyBtn}
+                      onClick={() => handleResolve(d.entityName, "localOnly")}
+                      disabled={resolvingId === d.entityName}
+                    >
+                      Keep Local Only
                     </button>
                     <button
                       className={styles.deleteLocalBtn}

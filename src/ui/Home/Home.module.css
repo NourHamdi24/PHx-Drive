@@ -96,8 +96,9 @@
 
 .modalRow {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
   padding: 10px 12px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
@@ -105,7 +106,6 @@
 }
 
 .modalFileName {
-  flex: 1;
   font-size: 13px;
   color: #374151;
   overflow: hidden;
@@ -117,7 +117,7 @@
 .modalActions {
   display: flex;
   gap: 8px;
-  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .restoreBtn {
@@ -134,6 +134,22 @@
 
 .restoreBtn:hover {
   background: #bfdbfe;
+}
+
+.localOnlyBtn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid #ddd6fe;
+  background: #f5f3ff;
+  color: #6d28d9;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.localOnlyBtn:hover {
+  background: #ede9fe;
 }
 
 .deleteLocalBtn {
@@ -153,6 +169,7 @@
 }
 
 .restoreBtn:disabled,
+.localOnlyBtn:disabled,
 .deleteLocalBtn:disabled {
   opacity: 0.4;
   cursor: default;
