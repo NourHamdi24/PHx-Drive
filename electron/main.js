@@ -22,12 +22,23 @@ const { startQueueProcessor } = require("../src/sync/queueProcessor");
 let mainWindow = null;
 let tray = null;
 
+const iconPath = app.isPackaged
+  ? path.join(process.resourcesPath, "logo.png")
+  : path.join(__dirname, "../build/logo.png");
+
+const windowIconPath =
+  process.platform === "win32"
+    ? app.isPackaged
+      ? path.join(process.resourcesPath, "logo.ico")
+      : path.join(__dirname, "../build/logo.ico")
+    : iconPath;
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     title: "PHx Drive",
-    icon: path.join(__dirname, "../build/logo.png"),
+    icon: windowIconPath,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -49,6 +60,20 @@ function createWindow() {
     if (!app.isQuiting) {
       event.preventDefault();
       mainWindow.hide();
+    }
+  });
+}
+
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
     }
   });
 }
@@ -346,7 +371,7 @@ app.whenReady().then(() => {
 
   // ─── System Tray ────────────────────────────────────────
   const trayIcon = nativeImage
-    .createFromPath(path.join(__dirname, "../build/logo.png"))
+    .createFromPath(iconPath)
     .resize({ width: 16, height: 16, quality: "best" });
 
   tray = new Tray(trayIcon);
