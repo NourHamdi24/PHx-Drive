@@ -26,7 +26,7 @@ const TABS = [
   { id: "settings", label: "Settings", Icon: SettingsIcon },
 ];
 
-const Sidebar = ({ activeTab, onTabChange }) => {
+const Sidebar = ({ activeTab, onTabChange, disabledTabs = [] }) => {
   return (
     <div className={styles.sidebar}>
       {/* Brand */}
@@ -41,19 +41,24 @@ const Sidebar = ({ activeTab, onTabChange }) => {
       {/* Nav */}
       <div className={styles.menuLabel}>MENU</div>
       <nav className={styles.nav}>
-        {TABS.map(({ id, label, Icon }) => (
-          <button
-            key={id}
-            className={`${styles.navItem} ${activeTab === id ? styles.active : ""}`}
-            onClick={() => onTabChange(id)}
-          >
-            <span className={styles.navIcon}>
-              <Icon />
-            </span>
-            <span className={styles.navLabel}>{label}</span>
-            {activeTab === id && <span className={styles.chevron}>›</span>}
-          </button>
-        ))}
+        {TABS.map(({ id, label, Icon }) => {
+          const disabled = disabledTabs.includes(id);
+          return (
+            <button
+              key={id}
+              className={`${styles.navItem} ${activeTab === id ? styles.active : ""}`}
+              onClick={() => !disabled && onTabChange(id)}
+              disabled={disabled}
+              title={disabled ? "Finish setup in Settings first" : undefined}
+            >
+              <span className={styles.navIcon}>
+                <Icon />
+              </span>
+              <span className={styles.navLabel}>{label}</span>
+              {activeTab === id && <span className={styles.chevron}>›</span>}
+            </button>
+          );
+        })}
       </nav>
     </div>
   );

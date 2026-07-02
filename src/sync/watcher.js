@@ -14,9 +14,6 @@ const isAutoMode = () => {
 // Skip list — files Node itself is writing (to prevent upload loops)
 const skipList = new Set();
 
-const addToSkipList = (filePath) => skipList.add(filePath);
-const removeFromSkipList = (filePath) => skipList.delete(filePath);
-
 // ─── Save or update sync state ─────────────────────────────
 const saveSyncState = (
   db,
@@ -386,6 +383,4 @@ const stopWatcher = () => {
 module.exports = {
   startWatcher,
   stopWatcher,
-  addToSkipList,
-  removeFromSkipList,
 };

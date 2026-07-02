@@ -6,6 +6,7 @@ const {
   Tray,
   Menu,
   nativeImage,
+  shell,
 } = require("electron");
 const path = require("path");
 const { getDatabase } = require("../src/db/database");
@@ -37,6 +38,8 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    minWidth: 760,
+    minHeight: 560,
     title: "PHx Drive",
     icon: windowIconPath,
     webPreferences: {
@@ -358,16 +361,6 @@ app.whenReady().then(() => {
     return [...remoteList, ...localOnlyFiles];
   });
 
-  ipcMain.handle("trash:count", () => {
-    const db = getDatabase();
-    const user = db.prepare("SELECT * FROM users LIMIT 1").get();
-    if (!user) return 0;
-    const row = db
-      .prepare("SELECT COUNT(*) as count FROM trash WHERE user_id = ?")
-      .get(user.id);
-    return row?.count || 0;
-  });
-
   ipcMain.handle("files:trash", async (event, entityName) => {
     const db = getDatabase();
     const user = db.prepare("SELECT * FROM users LIMIT 1").get();
@@ -468,6 +461,24 @@ app.whenReady().then(() => {
   ipcMain.handle("settings:getAutoStart", () => {
     const { openAtLogin } = app.getLoginItemSettings();
     return openAtLogin;
+  });
+
+  ipcMain.handle("settings:getUserProfile", async () => {
+    const db = getDatabase();
+    const user = db.prepare("SELECT * FROM users LIMIT 1").get();
+    if (!user) return null;
+    const { getUserProfile } = require("../src/sync/api");
+    try {
+      return await getUserProfile(user.frappe_url, user.session_cookie, user.email);
+    } catch (err) {
+      console.error("Failed to fetch user profile:", err);
+      return null;
+    }
+  });
+
+  // ─── System ─────────────────────────────────────────────
+  ipcMain.handle("system:openExternal", (event, url) => {
+    shell.openExternal(url);
   });
 
   // ─── System Tray ────────────────────────────────────────

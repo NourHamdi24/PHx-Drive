@@ -2,7 +2,6 @@ import styles from "./App.module.css";
 import { useState, useEffect } from "react";
 import Login from "./Login/Login";
 import Home from "./Home/Home";
-import SelectFolder from "./SelectFolder/SelectFolder";
 function App() {
   const [user, setUser] = useState(null);
   const [screen, setScreen] = useState("loading");
@@ -15,7 +14,7 @@ function App() {
           setUser(result);
           await window.api.startWatcher();
           await window.api.startPolling();
-          setScreen(result.sync_folder_path ? "home" : "selectFolder");
+          setScreen("home");
         } else {
           setScreen("login");
         }
@@ -30,11 +29,6 @@ function App() {
     setUser(result);
     await window.api.startWatcher();
     await window.api.startPolling();
-    setScreen(result.sync_folder_path ? "home" : "selectFolder");
-  };
-
-  const handleFolderSelected = (folderPath) => {
-    setUser((prev) => ({ ...prev, sync_folder_path: folderPath }));
     setScreen("home");
   };
 
@@ -46,8 +40,6 @@ function App() {
   // Still checking auto login
   if (screen === "loading") return <div>Loading...</div>;
   if (screen === "login") return <Login onLoginSuccess={handleLoginSuccess} />;
-  if (screen === "selectFolder")
-    return <SelectFolder onFolderSelected={handleFolderSelected} />;
   if (screen === "home") return <Home user={user} onLogout={handleLogout} />;
 }
 

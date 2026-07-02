@@ -58,7 +58,9 @@ const parseLogMessage = (message) => {
 };
 
 const Home = ({ user, onLogout }) => {
-  const [activeTab, setActiveTab] = useState("files");
+  const [syncFolderPath, setSyncFolderPath] = useState(user?.sync_folder_path || "");
+  const needsSetup = !syncFolderPath;
+  const [activeTab, setActiveTab] = useState(needsSetup ? "settings" : "files");
   const [syncLog, setSyncLog] = useState([]);
   const [files, setFiles] = useState([]);
   const [syncing, setSyncing] = useState(false);
@@ -148,7 +150,13 @@ const Home = ({ user, onLogout }) => {
       case "activity":
         return <Activity logs={syncLog} onClear={() => setSyncLog([])} syncing={syncing} lastSyncTime={lastSyncTime} />;
       case "settings":
-        return <Settings user={user} onLogout={onLogout} />;
+        return (
+          <Settings
+            user={user}
+            onLogout={onLogout}
+            onSaved={(saved) => setSyncFolderPath(saved.sync_folder_path || "")}
+          />
+        );
       default:
         return (
           <Files
@@ -221,6 +229,7 @@ const Home = ({ user, onLogout }) => {
         <Sidebar
           activeTab={activeTab}
           onTabChange={setActiveTab}
+          disabledTabs={needsSetup ? ["files", "activity"] : []}
         />
         <div className={styles.main}>
           <Header

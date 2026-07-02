@@ -46,6 +46,24 @@ const getLoggedUser = async (frappUrl, sessionCookie) => {
   return response.data.message;
 };
 
+const getUserProfile = async (frappUrl, sessionCookie, email) => {
+  const client = createClient(frappUrl, sessionCookie);
+  const response = await client.get(`/api/resource/User/${encodeURIComponent(email)}`, {
+    params: { fields: JSON.stringify(["full_name", "username", "user_image"]) },
+  });
+  const { full_name, username, user_image } = response.data.data;
+
+  let image = null;
+  if (user_image) {
+    const imageUrl = user_image.startsWith("http") ? user_image : `${frappUrl}${user_image}`;
+    const imageResponse = await client.get(imageUrl, { responseType: "arraybuffer" });
+    const contentType = imageResponse.headers["content-type"] || "image/png";
+    image = `data:${contentType};base64,${Buffer.from(imageResponse.data).toString("base64")}`;
+  }
+
+  return { full_name, username, image };
+};
+
 // ─── Files ─────────────────────────────────────────────────────
 
 const listFiles = async (frappUrl, sessionCookie, folderId, isActive = 1) => {
@@ -204,6 +222,7 @@ const getShareLink = (frappUrl, entityName) => {
 module.exports = {
   login,
   getLoggedUser,
+  getUserProfile,
   listFiles,
   downloadFile,
   uploadFile,

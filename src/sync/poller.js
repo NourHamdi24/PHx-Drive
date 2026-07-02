@@ -58,6 +58,4 @@ const stopPolling = () => {
   }
 };
 
-const isPolling = () => pollingTimer !== null;
-
-module.exports = { startPolling, stopPolling, isPolling };
+module.exports = { startPolling, stopPolling };

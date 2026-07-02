@@ -28,11 +28,8 @@ const clearCredentials = () => {
   }
 };
 
-const hasCredentials = () => fs.existsSync(getCredsPath());
-
 module.exports = {
   saveCredentials,
   loadCredentials,
   clearCredentials,
-  hasCredentials,
 };

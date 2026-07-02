@@ -91,6 +91,16 @@
   color: #111827;
 }
 
+.navItem:disabled {
+  cursor: not-allowed;
+  color: #d1d5db;
+}
+
+.navItem:disabled:hover {
+  background: transparent;
+  color: #d1d5db;
+}
+
 .active {
   background: #fef2f2 !important;
   color: #b31313 !important;
@@ -126,5 +136,34 @@
   font-size: 16px;
   color: #b31313;
   line-height: 1;
+}
+
+@media (max-width: 900px) {
+  .sidebar {
+    width: 72px;
+    min-width: 72px;
+  }
+
+  .brand {
+    justify-content: center;
+    padding: 20px 0 16px;
+  }
+
+  .brandText,
+  .menuLabel,
+  .navLabel,
+  .chevron {
+    display: none;
+  }
+
+  .nav {
+    padding: 0 14px;
+  }
+
+  .navItem {
+    justify-content: center;
+    padding: 12px;
+    gap: 0;
+  }
 }
 

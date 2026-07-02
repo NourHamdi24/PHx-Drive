@@ -23,3 +23,13 @@
   color: #9ca3af;
   margin: 0;
 }
+
+@media (max-width: 900px) {
+  .header {
+    padding: 18px 16px 14px;
+  }
+
+  .title {
+    font-size: 19px;
+  }
+}

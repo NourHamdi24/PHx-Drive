@@ -80,6 +80,9 @@ const Login = ({ onLoginSuccess }) => {
               {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
+          <p className={styles.copyright}>
+            © {new Date().getFullYear()} PharaonX. All rights reserved.
+          </p>
         </div>
       </div>
     </div>

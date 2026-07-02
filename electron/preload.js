@@ -15,7 +15,6 @@ contextBridge.exposeInMainWorld("api", {
   listFilesWithStatus: () => ipcRenderer.invoke("files:listWithStatus"),
   getShareLink: (entityName) =>
     ipcRenderer.invoke("files:shareLink", entityName),
-  trashCount: () => ipcRenderer.invoke("trash:count"),
 
   // Delete (permanent — local and remote)
   trashFile: (entityName) => ipcRenderer.invoke("files:trash", entityName),
@@ -54,4 +53,8 @@ contextBridge.exposeInMainWorld("api", {
   setAutoStart: (enabled) =>
     ipcRenderer.invoke("settings:setAutoStart", enabled),
   getAutoStart: () => ipcRenderer.invoke("settings:getAutoStart"),
+  getUserProfile: () => ipcRenderer.invoke("settings:getUserProfile"),
+
+  // System
+  openExternal: (url) => ipcRenderer.invoke("system:openExternal", url),
 });
