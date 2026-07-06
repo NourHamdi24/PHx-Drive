@@ -34,6 +34,10 @@ const windowIconPath =
       : path.join(__dirname, "../build/logo.ico")
     : iconPath;
 
+const guidePath = app.isPackaged
+  ? path.join(process.resourcesPath, "Drive_Guide.pdf")
+  : path.join(__dirname, "../build/Drive_Guide.pdf");
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -479,6 +483,10 @@ app.whenReady().then(() => {
   // ─── System ─────────────────────────────────────────────
   ipcMain.handle("system:openExternal", (event, url) => {
     shell.openExternal(url);
+  });
+
+  ipcMain.handle("system:openGuide", () => {
+    shell.openPath(guidePath);
   });
 
   // ─── System Tray ────────────────────────────────────────

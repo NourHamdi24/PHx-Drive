@@ -18,13 +18,13 @@
 
 /* ─── Status Card ─────────────────────────────────────────── */
 .statusCard {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 16px;
   padding: 22px 24px;
   display: flex;
   align-items: center;
   gap: 18px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
+  box-shadow: var(--shadow-sm);
 }
 
 .statusIcon {
@@ -46,7 +46,7 @@
 .statusTitle {
   font-size: 16px;
   font-weight: 600;
-  color: #111;
+  color: var(--text-heading);
 }
 
 .statusSub {
@@ -54,7 +54,7 @@
   align-items: center;
   gap: 5px;
   font-size: 12px;
-  color: #999;
+  color: var(--text-muted);
 }
 
 /* ─── Section ─────────────────────────────────────────────── */
@@ -76,12 +76,12 @@
   font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: #b0b0b0;
+  color: var(--text-faint);
 }
 
 .clearBtn {
   font-size: 11px;
-  color: #b0b0b0;
+  color: var(--text-faint);
   background: none;
   border: none;
   cursor: pointer;
@@ -91,16 +91,16 @@
 }
 
 .clearBtn:hover {
-  color: #555;
-  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-body);
+  background: var(--bg-hover);
 }
 
 /* ─── Activity Card ───────────────────────────────────────── */
 .activityCard {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
+  box-shadow: var(--shadow-sm);
 }
 
 .activityItem {
@@ -108,7 +108,7 @@
   align-items: center;
   gap: 14px;
   padding: 13px 20px;
-  border-bottom: 1px solid #f2f2f2;
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .activityItem:last-child {
@@ -136,7 +136,7 @@
 .activityFileName {
   font-size: 13.5px;
   font-weight: 500;
-  color: #111;
+  color: var(--text-heading);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -144,36 +144,36 @@
 
 .activityLabel {
   font-size: 12px;
-  color: #999;
+  color: var(--text-muted);
 }
 
 .activityLabelOnly {
   font-size: 13.5px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-body);
 }
 
 .activityTime {
   font-size: 12px;
-  color: #c0c0c0;
+  color: var(--text-faint);
   flex-shrink: 0;
   white-space: nowrap;
 }
 
 /* ─── Empty state ─────────────────────────────────────────── */
 .emptyCard {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 16px;
   padding: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
+  box-shadow: var(--shadow-sm);
 }
 
 .empty {
   font-size: 13px;
-  color: #c0c0c0;
+  color: var(--text-faint);
 }
 
 /* ─── Spin animation ──────────────────────────────────────── */

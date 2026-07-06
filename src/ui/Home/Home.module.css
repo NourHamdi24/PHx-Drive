@@ -2,7 +2,7 @@
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #f7f5f2;
+  background: var(--bg-page);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   overflow: hidden;
 }
@@ -18,7 +18,7 @@
   flex-direction: column;
   flex: 1;
   overflow: hidden;
-  background: #f7f5f2;
+  background: var(--bg-page);
 }
 
 .content {
@@ -31,7 +31,7 @@
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -39,14 +39,14 @@
 }
 
 .modal {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 10px;
   width: 520px;
   max-width: 90vw;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--shadow-md);
 }
 
 .modalHeader {
@@ -60,14 +60,14 @@
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-heading);
 }
 
 .modalClose {
   background: none;
   border: none;
   font-size: 16px;
-  color: #9ca3af;
+  color: var(--text-muted);
   cursor: pointer;
   padding: 2px 6px;
   border-radius: 4px;
@@ -75,14 +75,14 @@
 }
 
 .modalClose:hover {
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--bg-hover);
+  color: var(--text-body);
 }
 
 .modalSubtitle {
   margin: 8px 20px 12px;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--text-muted);
   line-height: 1.5;
 }
 
@@ -100,14 +100,14 @@
   align-items: stretch;
   gap: 8px;
   padding: 10px 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
-  background: #f9fafb;
+  background: var(--bg-hover);
 }
 
 .modalFileName {
   font-size: 13px;
-  color: #374151;
+  color: var(--text-body);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

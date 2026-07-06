@@ -1,8 +1,8 @@
 .sidebar {
   width: 240px;
   min-width: 240px;
-  background: #ffffff;
-  border-right: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -15,13 +15,13 @@
   align-items: center;
   gap: 12px;
   padding: 20px 20px 16px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .logo {
   width: 40px;
   height: 40px;
-  background-color: #b31313;
+  background-color: var(--accent);
   color: #fff;
   font-size: 13px;
   font-weight: 700;
@@ -30,7 +30,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(179, 19, 19, 0.25);
+  box-shadow: 0 2px 8px var(--logo-shadow-1);
 }
 
 .brandText {
@@ -42,13 +42,13 @@
 .brandTitle {
   font-size: 14px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-heading);
   line-height: 1.2;
 }
 
 .brandSubtitle {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--text-muted);
   line-height: 1.2;
 }
 
@@ -56,7 +56,7 @@
 .menuLabel {
   font-size: 10px;
   font-weight: 700;
-  color: #9ca3af;
+  color: var(--text-muted);
   letter-spacing: 0.08em;
   padding: 16px 20px 8px;
 }
@@ -76,7 +76,7 @@
   border-radius: 8px;
   border: none;
   background: transparent;
-  color: #374151;
+  color: var(--text-body);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -87,23 +87,23 @@
 }
 
 .navItem:hover {
-  background: #f9fafb;
-  color: #111827;
+  background: var(--bg-hover);
+  color: var(--text-heading);
 }
 
 .navItem:disabled {
   cursor: not-allowed;
-  color: #d1d5db;
+  color: var(--text-faint);
 }
 
 .navItem:disabled:hover {
   background: transparent;
-  color: #d1d5db;
+  color: var(--text-faint);
 }
 
 .active {
-  background: #fef2f2 !important;
-  color: #b31313 !important;
+  background: var(--accent-soft-bg) !important;
+  color: var(--accent) !important;
   font-weight: 600;
 }
 
@@ -123,7 +123,7 @@
 }
 
 .badge {
-  background: #b31313;
+  background: var(--accent);
   color: #fff;
   font-size: 10px;
   font-weight: 700;
@@ -134,7 +134,7 @@
 
 .chevron {
   font-size: 16px;
-  color: #b31313;
+  color: var(--accent);
   line-height: 1;
 }
 

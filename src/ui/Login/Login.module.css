@@ -7,7 +7,7 @@
   padding: 24px;
 }
 .loginCard {
-  background-color: #fff;
+  background-color: var(--bg-card);
   border-radius: 20px;
   padding: 40px 36px;
   width: 100%;
@@ -29,12 +29,12 @@
 }
 .logo {
   padding: 15px 10px;
-  background-color: #b31313;
+  background-color: var(--accent);
   margin-bottom: 2rem;
   border-radius: 10px;
   box-shadow:
-    0 8px 16px rgba(179, 19, 19, 0.15),
-    0 16px 32px rgba(179, 19, 19, 0.12);
+    0 8px 16px var(--logo-shadow-1),
+    0 16px 32px var(--logo-shadow-2);
 }
 .logo h1 {
   color: #fff;
@@ -42,13 +42,13 @@
 .title h1 {
   text-align: center;
   font-size: 1.5rem;
-  color: #000;
+  color: var(--text-heading);
   margin-bottom: 10px;
 }
 .title h2 {
   text-align: center;
   font-size: 1rem;
-  color: #c01515;
+  color: var(--text-brand);
   text-transform: uppercase;
   margin-bottom: 10px;
 }
@@ -61,12 +61,12 @@
 .subtitle p {
   text-align: center;
   font-size: 1rem;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 .subtitle span {
   text-align: center;
   font-size: 1rem;
-  color: #484c53;
+  color: var(--text-secondary);
 }
 .loginForm {
   display: flex;
@@ -87,25 +87,30 @@
 .inputGroup label {
   font-size: 14px;
   font-weight: 600;
-  color: #1b1a27;
+  color: var(--text-label);
 }
 
 .inputGroup input {
   padding: 12px 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-input);
   border-radius: 10px;
   font-size: 14px;
   outline: none;
-  transition: border-color 0.2s ease;
+  background-color: var(--bg-card);
+  color: var(--text-label);
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .inputGroup input:focus {
-  border-color: #b31313;
+  border-color: var(--accent);
 }
 
 .loginBtn {
   width: 100%;
-  background-color: #b31313;
+  background-color: var(--accent);
   color: white;
   border: none;
   border-radius: 10px;
@@ -117,12 +122,12 @@
 }
 
 .loginBtn:hover {
-  background-color: #9a1111;
+  background-color: var(--accent-hover);
 }
 
 .buttonDisabled {
   width: 100%;
-  background-color: #c9c9c9;
+  background-color: var(--accent-disabled);
   color: white;
   border: none;
   border-radius: 10px;
@@ -131,7 +136,7 @@
 }
 
 .error {
-  color: #dc2626;
+  color: var(--error);
   font-size: 14px;
   text-align: center;
 }
@@ -139,6 +144,6 @@
 .copyright {
   margin-top: 24px;
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--text-footer);
   text-align: center;
 }

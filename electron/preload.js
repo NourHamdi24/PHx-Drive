@@ -57,4 +57,5 @@ contextBridge.exposeInMainWorld("api", {
 
   // System
   openExternal: (url) => ipcRenderer.invoke("system:openExternal", url),
+  openGuide: () => ipcRenderer.invoke("system:openGuide"),
 });

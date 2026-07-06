@@ -34,7 +34,8 @@
     },
     "extraResources": [
       { "from": "build/logo.png", "to": "logo.png" },
-      { "from": "build/logo.ico", "to": "logo.ico" }
+      { "from": "build/logo.ico", "to": "logo.ico" },
+      { "from": "build/Drive_Guide.pdf", "to": "Drive_Guide.pdf" }
     ],
     "win": {
       "icon": "build/logo.ico"

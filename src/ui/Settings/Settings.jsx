@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import styles from "./Settings.module.css";
+import { getStoredThemePreference, resolveTheme, setTheme } from "../theme";
 
 const getInitials = (email = "") => {
   const local = email.split("@")[0];
@@ -35,6 +36,9 @@ const Settings = ({ user, onLogout, onSaved }) => {
   const [syncMode, setSyncMode] = useState(user?.sync_mode || "manual");
   const [syncInterval, setSyncInterval] = useState(user?.sync_interval || 30);
   const [autoStart, setAutoStart] = useState(false);
+  const [darkMode, setDarkMode] = useState(
+    () => resolveTheme(getStoredThemePreference()) === "dark",
+  );
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -85,6 +89,11 @@ const Settings = ({ user, onLogout, onSaved }) => {
   const handleBrowse = async () => {
     const path = await window.api.selectFolder();
     if (path) setSyncFolder(path);
+  };
+
+  const handleToggleDarkMode = (checked) => {
+    setDarkMode(checked);
+    setTheme(checked ? "dark" : "light");
   };
 
   const initials = getInitials(user?.email);
@@ -188,6 +197,25 @@ const Settings = ({ user, onLogout, onSaved }) => {
               type="checkbox"
               checked={autoStart}
               onChange={(e) => setAutoStart(e.target.checked)}
+            />
+            <span className={styles.toggleSlider} />
+          </label>
+        </div>
+      </div>
+
+      {/* ── Appearance ───────────────────────────────────── */}
+      <span className={styles.sectionLabel}>Appearance</span>
+      <div className={styles.card}>
+        <div className={styles.toggleRow}>
+          <div className={styles.toggleInfo}>
+            <span className={styles.toggleTitle}>Dark mode</span>
+            <span className={styles.toggleDesc}>Follows your system setting by default. Toggle to override.</span>
+          </div>
+          <label className={styles.toggle}>
+            <input
+              type="checkbox"
+              checked={darkMode}
+              onChange={(e) => handleToggleDarkMode(e.target.checked)}
             />
             <span className={styles.toggleSlider} />
           </label>
