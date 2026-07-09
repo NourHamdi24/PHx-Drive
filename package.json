@@ -35,7 +35,10 @@
     "extraResources": [
       { "from": "build/logo.png", "to": "logo.png" },
       { "from": "build/logo.ico", "to": "logo.ico" },
-      { "from": "build/Drive_Guide.pdf", "to": "Drive_Guide.pdf" }
+      { "from": "build/Drive_Guide.pdf", "to": "Drive_Guide.pdf" },
+      { "from": "build/synced.png", "to": "synced.png" },
+      { "from": "build/syncing.png", "to": "syncing.png" },
+      { "from": "build/error.png", "to": "error.png" }
     ],
     "win": {
       "icon": "build/logo.ico"

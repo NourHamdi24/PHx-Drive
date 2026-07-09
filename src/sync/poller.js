@@ -3,11 +3,11 @@ const { getDatabase } = require("../db/database");
 
 let pollingTimer = null;
 
-const startPolling = (emitLog, onRefresh, onRemoteTrashWarnings) => {
+const startPolling = (emitLog, onRefresh) => {
   console.log("Polling service started");
 
   // Run immediately
-  runPoll(emitLog, onRefresh, onRemoteTrashWarnings);
+  runPoll(emitLog, onRefresh);
 
   // Then check every 5 seconds if we should poll
   pollingTimer = setInterval(() => {
@@ -17,12 +17,12 @@ const startPolling = (emitLog, onRefresh, onRemoteTrashWarnings) => {
     if (!user) return;
     if (user.sync_mode === "manual") return;
 
-    runPoll(emitLog, onRefresh, onRemoteTrashWarnings);
+    runPoll(emitLog, onRefresh);
   }, 5000); // check every 5 seconds, respects user's sync_interval inside runPoll
 };
 let lastPollTime = 0;
 
-const runPoll = async (emitLog, onRefresh, onRemoteTrashWarnings) => {
+const runPoll = async (emitLog, onRefresh) => {
   const db = getDatabase();
   const user = db.prepare("SELECT * FROM users LIMIT 1").get();
 
@@ -38,12 +38,9 @@ const runPoll = async (emitLog, onRefresh, onRemoteTrashWarnings) => {
   try {
     console.log("Polling Frappe for changes...");
     emitLog("Checking for remote changes...");
-    const result = await runSync();
+    await runSync();
     emitLog("Remote check complete ✅");
     if (onRefresh) onRefresh();
-    if (onRemoteTrashWarnings && result?.remoteTrashWarnings?.length > 0) {
-      onRemoteTrashWarnings(result.remoteTrashWarnings);
-    }
   } catch (err) {
     console.error("Polling error:", err.message);
     emitLog(`Remote check failed ❌`);

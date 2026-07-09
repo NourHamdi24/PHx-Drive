@@ -2,8 +2,26 @@ const chokidar = require("chokidar");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
-const { uploadFile, createFolder, permanentDelete } = require("./api");
+const { uploadFile, createFolder, trashOrRestore } = require("./api");
 const { getDatabase } = require("../db/database");
+const {
+  beginActivity,
+  endActivity,
+  reportError,
+  clearError,
+} = require("./syncStatus");
+
+// ─── Trash bookkeeping (30-day retention, purged by the scheduler) ─
+const addToTrash = (db, userId, entityName, title, localPath, source) => {
+  db.prepare("DELETE FROM trash WHERE entity_name = ? AND user_id = ?").run(
+    entityName,
+    userId,
+  );
+  db.prepare(
+    `INSERT INTO trash (user_id, entity_name, title, original_path, expires_at, source)
+     VALUES (?, ?, ?, ?, datetime('now', '+30 days'), ?)`,
+  ).run(userId, entityName, title, localPath, source);
+};
 
 let watcher = null;
 const isAutoMode = () => {
@@ -119,6 +137,7 @@ const startWatcher = (user, emitLog) => {
     console.log(`New local file: ${relativePath}`);
     emitLog(`Uploading: ${path.basename(filePath)}`);
 
+    beginActivity();
     try {
       const parentRelative = path.dirname(relativePath);
       const parentId = getRemoteParentId(
@@ -152,9 +171,11 @@ const startWatcher = (user, emitLog) => {
 
       emitLog(`Uploaded: ${path.basename(filePath)} ✅`);
       console.log(`Uploaded: ${relativePath}`);
+      clearError();
     } catch (err) {
       emitLog(`Upload failed: ${path.basename(filePath)} ❌`);
       console.error(`Upload failed for ${relativePath}:`, err.message);
+      reportError();
 
       // Save to queue for retry
       const db2 = getDatabase();
@@ -166,6 +187,8 @@ const startWatcher = (user, emitLog) => {
       `,
         )
         .run(userId, filePath);
+    } finally {
+      endActivity();
     }
   });
 
@@ -182,6 +205,7 @@ const startWatcher = (user, emitLog) => {
     console.log(`File changed: ${relativePath}`);
     emitLog(`Updating: ${path.basename(filePath)}`);
 
+    beginActivity();
     try {
       // Find existing sync state to get entity_name and parent
       const existingState = db
@@ -224,9 +248,13 @@ const startWatcher = (user, emitLog) => {
 
       emitLog(`Updated: ${path.basename(filePath)} ✅`);
       console.log(`Updated: ${relativePath}`);
+      clearError();
     } catch (err) {
       emitLog(`Update failed: ${path.basename(filePath)} ❌`);
       console.error(`Update failed for ${relativePath}:`, err.message);
+      reportError();
+    } finally {
+      endActivity();
     }
   });
 
@@ -243,6 +271,7 @@ const startWatcher = (user, emitLog) => {
     console.log(`File deleted locally: ${relativePath}`);
     emitLog(`Deleting: ${path.basename(filePath)}`);
 
+    beginActivity();
     try {
       // Find the entity in sync state
       const existingState = db
@@ -256,21 +285,44 @@ const startWatcher = (user, emitLog) => {
         return;
       }
 
-      // Permanently delete on Frappe
-      await permanentDelete(frappe_url, session_cookie, [
+      // Move to trash on Frappe (soft delete — restorable)
+      await trashOrRestore(frappe_url, session_cookie, [
         existingState.entity_name,
       ]);
 
-      // Remove from sync state entirely
       db.prepare(
-        "DELETE FROM sync_state WHERE entity_name = ? AND user_id = ?",
+        "UPDATE sync_state SET status = 'trashed' WHERE entity_name = ? AND user_id = ?",
       ).run(existingState.entity_name, userId);
+      addToTrash(
+        db,
+        userId,
+        existingState.entity_name,
+        existingState.title,
+        filePath,
+        "local",
+      );
 
       emitLog(`Deleted: ${path.basename(filePath)} ✅`);
       console.log(`Trashed on Frappe: ${relativePath}`);
+      clearError();
     } catch (err) {
       emitLog(`Delete failed: ${path.basename(filePath)} ❌`);
       console.error(`Delete failed for ${relativePath}:`, err.message);
+      reportError();
+
+      const retryState = db
+        .prepare(
+          "SELECT entity_name FROM sync_state WHERE local_path = ? AND user_id = ?",
+        )
+        .get(filePath, userId);
+      if (retryState) {
+        db.prepare(
+          `INSERT INTO sync_queue (user_id, entity_name, local_path, action, status)
+           VALUES (?, ?, ?, 'delete', 'pending')`,
+        ).run(userId, retryState.entity_name, filePath);
+      }
+    } finally {
+      endActivity();
     }
   });
 
@@ -286,6 +338,7 @@ const startWatcher = (user, emitLog) => {
     console.log(`Folder deleted locally: ${relativePath}`);
     emitLog(`Deleting folder: ${path.basename(dirPath)}`);
 
+    beginActivity();
     try {
       const existingState = db
         .prepare(
@@ -298,19 +351,43 @@ const startWatcher = (user, emitLog) => {
         return;
       }
 
-      await permanentDelete(frappe_url, session_cookie, [
+      await trashOrRestore(frappe_url, session_cookie, [
         existingState.entity_name,
       ]);
 
       db.prepare(
-        "DELETE FROM sync_state WHERE entity_name = ? AND user_id = ?",
+        "UPDATE sync_state SET status = 'trashed' WHERE entity_name = ? AND user_id = ?",
       ).run(existingState.entity_name, userId);
+      addToTrash(
+        db,
+        userId,
+        existingState.entity_name,
+        existingState.title,
+        dirPath,
+        "local",
+      );
 
       emitLog(`Deleted folder: ${path.basename(dirPath)} ✅`);
       console.log(`Folder deleted on Frappe: ${relativePath}`);
+      clearError();
     } catch (err) {
       emitLog(`Folder delete failed: ${path.basename(dirPath)} ❌`);
       console.error(`Folder delete failed for ${relativePath}:`, err.message);
+      reportError();
+
+      const retryState = db
+        .prepare(
+          "SELECT entity_name FROM sync_state WHERE local_path = ? AND user_id = ?",
+        )
+        .get(dirPath, userId);
+      if (retryState) {
+        db.prepare(
+          `INSERT INTO sync_queue (user_id, entity_name, local_path, action, status)
+           VALUES (?, ?, ?, 'delete', 'pending')`,
+        ).run(userId, retryState.entity_name, dirPath);
+      }
+    } finally {
+      endActivity();
     }
   });
 
@@ -328,6 +405,7 @@ const startWatcher = (user, emitLog) => {
     console.log(`New local folder: ${relativePath}`);
     emitLog(`Creating folder: ${path.basename(dirPath)}`);
 
+    beginActivity();
     try {
       const parentRelative = path.dirname(relativePath);
       const parentId = getRemoteParentId(
@@ -358,9 +436,13 @@ const startWatcher = (user, emitLog) => {
       );
 
       emitLog(`Folder created: ${path.basename(dirPath)} ✅`);
+      clearError();
     } catch (err) {
       emitLog(`Folder creation failed: ${path.basename(dirPath)} ❌`);
       console.error(`Folder creation failed for ${relativePath}:`, err.message);
+      reportError();
+    } finally {
+      endActivity();
     }
   });
 

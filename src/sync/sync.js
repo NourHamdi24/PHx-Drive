@@ -6,9 +6,45 @@ const {
   uploadFile,
   createFolder,
   permanentDelete,
+  trashOrRestore,
   listTrashedFiles,
 } = require("./api");
 const { getDatabase } = require("../db/database");
+const {
+  beginActivity,
+  endActivity,
+  reportError,
+  clearError,
+} = require("./syncStatus");
+
+// ─── Trash bookkeeping (30-day retention, purged by the scheduler) ─
+const addToTrash = (db, userId, entityName, title, localPath, source) => {
+  db.prepare("DELETE FROM trash WHERE entity_name = ? AND user_id = ?").run(
+    entityName,
+    userId,
+  );
+  db.prepare(
+    `INSERT INTO trash (user_id, entity_name, title, original_path, expires_at, source)
+     VALUES (?, ?, ?, ?, datetime('now', '+30 days'), ?)`,
+  ).run(userId, entityName, title, localPath, source);
+};
+
+const removeFromTrash = (db, userId, entityName) => {
+  db.prepare("DELETE FROM trash WHERE entity_name = ? AND user_id = ?").run(
+    entityName,
+    userId,
+  );
+};
+
+const removeLocalPath = (fullPath) => {
+  if (!fs.existsSync(fullPath)) return;
+  const stat = fs.statSync(fullPath);
+  if (stat.isDirectory()) {
+    fs.rmSync(fullPath, { recursive: true, force: true });
+  } else {
+    fs.unlinkSync(fullPath);
+  }
+};
 
 // ─── List all files from Frappe recursively ────────────────
 const listAllRemoteFiles = async (
@@ -83,12 +119,15 @@ const runSync = async ({ manual = false } = {}) => {
 
   if (!user) {
     console.log("No user found. Skipping sync.");
-    return { remoteTrashWarnings: [] };
+    return;
   }
 
   const { frappe_url, session_cookie, root_folder_id, sync_folder_path } = user;
   console.log("Starting sync...");
   console.log("Sync folder:", sync_folder_path);
+
+  beginActivity();
+  try {
 
   // ─── Step 1: List remote files ──────────────────────────
   console.log("Fetching remote files...");
@@ -122,7 +161,7 @@ const runSync = async ({ manual = false } = {}) => {
     if (state.local_path) localPathStateMap[state.local_path] = state;
   }
 
-  // ─── Step 3.5: Push local deletions to remote ──────────
+  // ─── Step 3.5: Push local deletions to remote trash ────
   // Covers two cases:
   //   'pending_delete' — file was deleted via the app UI in manual mode
   //   'synced' with missing file — file was removed from disk since last sync (manual mode)
@@ -138,18 +177,20 @@ const runSync = async ({ manual = false } = {}) => {
     console.log(`Local deletion detected: ${state.title}`);
     if (remoteByEntityName.has(state.entity_name)) {
       try {
-        await permanentDelete(frappe_url, session_cookie, [state.entity_name]);
-        console.log(`Permanently deleted remotely: ${state.title}`);
+        await trashOrRestore(frappe_url, session_cookie, [state.entity_name]);
+        console.log(`Trashed remotely: ${state.title}`);
       } catch (err) {
         console.error(
-          `Failed remote permanent delete of ${state.entity_name}:`,
+          `Failed to trash remotely ${state.entity_name}:`,
           err.message,
         );
+        continue; // leave state untouched so this is retried next sync
       }
     }
     db.prepare(
-      "DELETE FROM sync_state WHERE entity_name = ? AND user_id = ?",
+      "UPDATE sync_state SET status = 'trashed' WHERE entity_name = ? AND user_id = ?",
     ).run(state.entity_name, user.id);
+    addToTrash(db, user.id, state.entity_name, state.title, state.local_path, "local");
     locallyDeletedEntities.add(state.entity_name);
   }
 
@@ -183,6 +224,10 @@ const runSync = async ({ manual = false } = {}) => {
       }
       await downloadFile(frappe_url, session_cookie, file.name, localPath);
       saveSyncState(db, user.id, file, localPath, "synced");
+      if (existingState?.status === "trashed") {
+        console.log(`Restored: ${file.relativePath}`);
+        removeFromTrash(db, user.id, file.name);
+      }
     } else if (existingState) {
       const localStat = fs.statSync(localPath);
       const localModifiedTime = localStat.mtime.toISOString();
@@ -226,7 +271,16 @@ const runSync = async ({ manual = false } = {}) => {
     }
   }
 
-  // ─── Step 5: Local → Remote (upload new; skip remote-deleted) ──
+  // ─── Step 4.5: Fetch remote trash to detect remote-initiated deletes ──
+  let remoteTrashedSet = new Set();
+  try {
+    const trashedRemoteFiles = await listTrashedFiles(frappe_url, session_cookie);
+    remoteTrashedSet = new Set(trashedRemoteFiles.map((f) => f.name));
+  } catch (err) {
+    console.error("Failed to fetch remote trash:", err.message);
+  }
+
+  // ─── Step 5: Local → Remote (upload new; mirror remote trash) ──
   console.log("Checking local → remote...");
   for (const [relativePath, localFile] of Object.entries(localFiles)) {
     const existsOnRemote = remoteFiles.find(
@@ -238,11 +292,21 @@ const runSync = async ({ manual = false } = {}) => {
 
       if (prevState) {
         // File was previously known — remote side no longer has it.
-        // Mark as remote_deleted; do NOT upload (remote deletion doesn't affect local).
         if (prevState.status === "synced") {
-          db.prepare(
-            "UPDATE sync_state SET status = 'remote_deleted' WHERE entity_name = ? AND user_id = ?",
-          ).run(prevState.entity_name, user.id);
+          if (remoteTrashedSet.has(prevState.entity_name)) {
+            // Remote trashed it — mirror the delete locally.
+            console.log(`Remote deletion detected, trashing locally: ${relativePath}`);
+            removeLocalPath(localFile.fullPath);
+            db.prepare(
+              "UPDATE sync_state SET status = 'trashed' WHERE entity_name = ? AND user_id = ?",
+            ).run(prevState.entity_name, user.id);
+            addToTrash(db, user.id, prevState.entity_name, prevState.title, localFile.fullPath, "remote");
+          } else {
+            // Gone from remote but not in trash either — ambiguous, don't touch local.
+            db.prepare(
+              "UPDATE sync_state SET status = 'remote_deleted' WHERE entity_name = ? AND user_id = ?",
+            ).run(prevState.entity_name, user.id);
+          }
         }
         continue;
       }
@@ -314,39 +378,14 @@ const runSync = async ({ manual = false } = {}) => {
     user.id,
   );
 
-  // ─── Step 6: Warn about remote-deleted files ───────────────
-  // Always run — both manual Sync Now and auto polling need to surface these.
-  let remoteTrashWarnings = [];
-  console.log("Checking remote trash for warnings...");
-  try {
-    const trashedRemoteFiles = await listTrashedFiles(frappe_url, session_cookie);
-    const remoteTrashedSet = new Set(trashedRemoteFiles.map((f) => f.name));
-
-    const remoteDeletedStates = db
-      .prepare(
-        "SELECT * FROM sync_state WHERE user_id = ? AND status = 'remote_deleted'",
-      )
-      .all(user.id);
-
-    for (const state of remoteDeletedStates) {
-      if (
-        remoteTrashedSet.has(state.entity_name) &&
-        state.local_path &&
-        fs.existsSync(state.local_path)
-      ) {
-        remoteTrashWarnings.push({
-          entityName: state.entity_name,
-          title: state.title,
-          localPath: state.local_path,
-        });
-      }
-    }
-  } catch (err) {
-    console.error("Failed to fetch remote trash for warnings:", err.message);
-  }
-
   console.log("Sync complete.");
-  return { remoteTrashWarnings };
+    clearError();
+  } catch (err) {
+    reportError();
+    throw err;
+  } finally {
+    endActivity();
+  }
 };
 
 // ─── Helper: save or update sync state ────────────────────

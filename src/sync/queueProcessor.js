@@ -1,6 +1,12 @@
 const fs = require("fs");
 const { getDatabase } = require("../db/database");
 const { uploadFile, trashOrRestore } = require("./api");
+const {
+  beginActivity,
+  endActivity,
+  reportError,
+  clearError,
+} = require("./syncStatus");
 
 const MAX_RETRIES = 3;
 const RETRY_DELAYS = [30000, 120000, 300000]; // 30s, 2min, 5min
@@ -30,6 +36,7 @@ const processQueue = async () => {
   isProcessing = true;
 
   for (const item of pending) {
+    beginActivity();
     try {
       db.prepare("UPDATE sync_queue SET status = ? WHERE id = ?").run(
         "processing",
@@ -54,13 +61,36 @@ const processQueue = async () => {
         await trashOrRestore(user.frappe_url, user.session_cookie, [
           item.entity_name,
         ]);
+
+        const state = db
+          .prepare(
+            "SELECT * FROM sync_state WHERE entity_name = ? AND user_id = ?",
+          )
+          .get(item.entity_name, user.id);
+        db.prepare(
+          "UPDATE sync_state SET status = 'trashed' WHERE entity_name = ? AND user_id = ?",
+        ).run(item.entity_name, user.id);
+        db.prepare(
+          "DELETE FROM trash WHERE entity_name = ? AND user_id = ?",
+        ).run(item.entity_name, user.id);
+        db.prepare(
+          `INSERT INTO trash (user_id, entity_name, title, original_path, expires_at, source)
+           VALUES (?, ?, ?, ?, datetime('now', '+30 days'), 'local')`,
+        ).run(
+          user.id,
+          item.entity_name,
+          state?.title || item.local_path.split(/[\\/]/).pop(),
+          item.local_path,
+        );
       }
 
       // Success — remove from queue
       db.prepare("DELETE FROM sync_queue WHERE id = ?").run(item.id);
       console.log(`Queue item processed: ${item.action} ${item.local_path}`);
+      clearError();
     } catch (err) {
       console.error(`Queue item failed: ${err.message}`);
+      reportError();
 
       const newRetries = item.retries + 1;
 
@@ -81,6 +111,8 @@ const processQueue = async () => {
         console.log(`Retrying in ${delay / 1000}s...`);
         setTimeout(() => processQueue(), delay);
       }
+    } finally {
+      endActivity();
     }
   }
 

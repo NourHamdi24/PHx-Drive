@@ -65,8 +65,6 @@ const Home = ({ user, onLogout }) => {
   const [files, setFiles] = useState([]);
   const [syncing, setSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState(null);
-  const [remoteTrashWarnings, setRemoteTrashWarnings] = useState([]);
-  const [resolvingId, setResolvingId] = useState(null);
 
   const addLog = (message) => {
     const parsed = parseLogMessage(message);
@@ -89,13 +87,10 @@ const Home = ({ user, onLogout }) => {
     setSyncing(true);
     addLog("Sync started...");
     try {
-      const result = await window.api.runSync();
+      await window.api.runSync();
       addLog("Sync complete ✅");
       setLastSyncTime(new Date());
       await loadFiles();
-      if (result?.remoteTrashWarnings?.length > 0) {
-        setRemoteTrashWarnings(result.remoteTrashWarnings);
-      }
     } catch (err) {
       addLog("Sync failed ❌");
     } finally {
@@ -103,36 +98,13 @@ const Home = ({ user, onLogout }) => {
     }
   };
 
-
-  const handleResolve = async (entityName, decision) => {
-    setResolvingId(entityName);
-    try {
-      await window.api.resolveRemoteDeletion(entityName, decision);
-      setRemoteTrashWarnings((prev) =>
-        prev.filter((d) => d.entityName !== entityName),
-      );
-      if (decision === "restore" || decision === "localOnly") await loadFiles();
-    } catch (err) {
-      console.error("Failed to resolve remote trash warning:", err);
-    } finally {
-      setResolvingId(null);
-    }
-  };
-
   useEffect(() => {
     loadFiles();
     const offLog = window.api.onSyncLog((message) => addLog(message));
     const offRefresh = window.api.onSyncRefresh(() => loadFiles());
-    const offWarnings = window.api.onRemoteDeletedWarnings((warnings) => {
-      setRemoteTrashWarnings((prev) => {
-        const existing = new Set(prev.map((w) => w.entityName));
-        return [...prev, ...warnings.filter((w) => !existing.has(w.entityName))];
-      });
-    });
     return () => {
       offLog?.();
       offRefresh?.();
-      offWarnings?.();
     };
   }, []);
 
@@ -173,58 +145,6 @@ const Home = ({ user, onLogout }) => {
 
   return (
     <div className={styles.container}>
-      {remoteTrashWarnings.length > 0 && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modal}>
-            <div className={styles.modalHeader}>
-              <h3 className={styles.modalTitle}>Files trashed on remote</h3>
-              <button
-                className={styles.modalClose}
-                onClick={() => setRemoteTrashWarnings([])}
-              >
-                ✕
-              </button>
-            </div>
-            <p className={styles.modalSubtitle}>
-              The following files are available locally but have been moved to
-              trash on the remote. Choose an action for each file.
-            </p>
-            <div className={styles.modalList}>
-              {remoteTrashWarnings.map((d) => (
-                <div key={d.entityName} className={styles.modalRow}>
-                  <span className={styles.modalFileName}>{d.title}</span>
-                  <div className={styles.modalActions}>
-                    <button
-                      className={styles.restoreBtn}
-                      onClick={() => handleResolve(d.entityName, "restore")}
-                      disabled={resolvingId === d.entityName}
-                    >
-                      {resolvingId === d.entityName ? "…" : "Restore on Remote"}
-                    </button>
-                    <button
-                      className={styles.localOnlyBtn}
-                      onClick={() => handleResolve(d.entityName, "localOnly")}
-                      disabled={resolvingId === d.entityName}
-                    >
-                      Keep Local Only
-                    </button>
-                    <button
-                      className={styles.deleteLocalBtn}
-                      onClick={() =>
-                        handleResolve(d.entityName, "deleteLocally")
-                      }
-                      disabled={resolvingId === d.entityName}
-                    >
-                      Delete Locally
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className={styles.layout}>
         <Sidebar
           activeTab={activeTab}

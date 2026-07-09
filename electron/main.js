@@ -20,6 +20,7 @@ const { startWatcher, stopWatcher } = require("../src/sync/watcher");
 const { startPolling, stopPolling } = require("../src/sync/poller");
 const { startScheduler } = require("../src/sync/scheduler");
 const { startQueueProcessor } = require("../src/sync/queueProcessor");
+const { getStatus, onStatusChange } = require("../src/sync/syncStatus");
 let mainWindow = null;
 let tray = null;
 
@@ -37,6 +38,46 @@ const windowIconPath =
 const guidePath = app.isPackaged
   ? path.join(process.resourcesPath, "Drive_Guide.pdf")
   : path.join(__dirname, "../build/Drive_Guide.pdf");
+
+const trayStatusIconPath = (name) =>
+  app.isPackaged
+    ? path.join(process.resourcesPath, `${name}.png`)
+    : path.join(__dirname, `../build/${name}.png`);
+
+// Composites a small badge onto the bottom-right corner of a base icon,
+// e.g. the app icon with a synced/syncing/error badge like OneDrive's tray icon.
+const compositeBadge = (baseImage, badgeImage, size, badgeSize) => {
+  const base = baseImage.resize({ width: size, height: size, quality: "best" });
+  const badge = badgeImage.resize({
+    width: badgeSize,
+    height: badgeSize,
+    quality: "best",
+  });
+
+  const baseBitmap = Buffer.from(base.toBitmap());
+  const badgeBitmap = badge.toBitmap();
+  const offset = size - badgeSize;
+
+  for (let y = 0; y < badgeSize; y++) {
+    for (let x = 0; x < badgeSize; x++) {
+      const bIdx = (y * badgeSize + x) * 4;
+      const alpha = badgeBitmap[bIdx + 3] / 255;
+      if (alpha === 0) continue;
+
+      const dIdx = ((offset + y) * size + (offset + x)) * 4;
+      for (let c = 0; c < 3; c++) {
+        baseBitmap[dIdx + c] = Math.round(
+          badgeBitmap[bIdx + c] * alpha + baseBitmap[dIdx + c] * (1 - alpha),
+        );
+      }
+      baseBitmap[dIdx + 3] = Math.round(
+        badgeBitmap[bIdx + 3] + baseBitmap[dIdx + 3] * (1 - alpha),
+      );
+    }
+  }
+
+  return nativeImage.createFromBitmap(baseBitmap, { width: size, height: size });
+};
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -166,126 +207,12 @@ app.whenReady().then(() => {
           mainWindow.webContents.send("sync:refresh");
         }
       },
-      (warnings) => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send("sync:remoteDeletedWarnings", warnings);
-        }
-      },
     );
     return { success: true };
   });
 
   ipcMain.handle("sync:stopPolling", () => {
     stopPolling();
-    return { success: true };
-  });
-
-  ipcMain.handle(
-    "sync:resolveRemoteDeletion",
-    async (event, entityName, decision) => {
-      const db = getDatabase();
-      const user = db.prepare("SELECT * FROM users LIMIT 1").get();
-      if (!user) return { success: false };
-
-      const state = db
-        .prepare(
-          "SELECT * FROM sync_state WHERE entity_name = ? AND user_id = ?",
-        )
-        .get(entityName, user.id);
-
-      if (decision === "restore") {
-        // Restore from remote trash, then re-download locally
-        const { trashOrRestore, downloadFile } = require("../src/sync/api");
-        await trashOrRestore(user.frappe_url, user.session_cookie, [
-          entityName,
-        ]);
-        if (state?.local_path) {
-          const fs = require("fs");
-          const path = require("path");
-          fs.mkdirSync(path.dirname(state.local_path), { recursive: true });
-          await downloadFile(
-            user.frappe_url,
-            user.session_cookie,
-            entityName,
-            state.local_path,
-          );
-        }
-        db.prepare(
-          "UPDATE sync_state SET status = 'synced' WHERE entity_name = ? AND user_id = ?",
-        ).run(entityName, user.id);
-      } else if (decision === "localOnly") {
-        // Keep the local copy only; stop uploading it and leave the remote in trash.
-        db.prepare(
-          "UPDATE sync_state SET status = 'local_only' WHERE entity_name = ? AND user_id = ?",
-        ).run(entityName, user.id);
-      } else {
-        // "deleteLocally" — delete local copy; remote stays in trash
-        const fs = require("fs");
-        if (state?.local_path && fs.existsSync(state.local_path)) {
-          fs.unlinkSync(state.local_path);
-        }
-        db.prepare(
-          "DELETE FROM sync_state WHERE entity_name = ? AND user_id = ?",
-        ).run(entityName, user.id);
-      }
-
-      return { success: true };
-    },
-  );
-
-  // Re-enable syncing for a "local only" file: upload it to remote as a
-  // fresh entity and go back to normal two-way sync.
-  ipcMain.handle("files:resyncLocalOnly", async (event, entityName) => {
-    const db = getDatabase();
-    const user = db.prepare("SELECT * FROM users LIMIT 1").get();
-    if (!user) return { success: false };
-
-    const state = db
-      .prepare("SELECT * FROM sync_state WHERE entity_name = ? AND user_id = ?")
-      .get(entityName, user.id);
-    if (!state?.local_path) return { success: false };
-
-    const fs = require("fs");
-    if (!fs.existsSync(state.local_path)) return { success: false };
-
-    const { uploadFile, createFolder } = require("../src/sync/api");
-    const { saveSyncState } = require("../src/sync/sync");
-    const parentId = state.parent_drive_entity || user.root_folder_id;
-
-    const uploaded = state.is_group
-      ? await createFolder(
-          user.frappe_url,
-          user.session_cookie,
-          state.title,
-          parentId,
-        )
-      : await uploadFile(
-          user.frappe_url,
-          user.session_cookie,
-          state.local_path,
-          state.title,
-          parentId,
-        );
-
-    db.prepare(
-      "DELETE FROM sync_state WHERE entity_name = ? AND user_id = ?",
-    ).run(entityName, user.id);
-
-    saveSyncState(
-      db,
-      user.id,
-      {
-        name: uploaded.name,
-        title: state.title,
-        modified: uploaded.modified || new Date().toISOString(),
-        file_size: state.is_group ? null : fs.statSync(state.local_path).size,
-        is_group: state.is_group,
-        parent_drive_entity: parentId,
-      },
-      state.local_path,
-      "synced",
-    );
-
     return { success: true };
   });
 
@@ -345,24 +272,7 @@ app.whenReady().then(() => {
         syncStatus: stateMap[f.name]?.status || "pending",
       }));
 
-    // Local-only files no longer exist on the remote (it's trashed there),
-    // so listAllRemoteFiles won't return them — surface them from sync_state.
-    const remoteNames = new Set(remoteFiles.map((f) => f.name));
-    const localOnlyFiles = syncStates
-      .filter(
-        (s) => s.status === "local_only" && !remoteNames.has(s.entity_name),
-      )
-      .map((s) => ({
-        name: s.entity_name,
-        title: s.title,
-        modified: s.modified,
-        file_size: s.file_size,
-        is_group: s.is_group,
-        parent_drive_entity: s.parent_drive_entity,
-        syncStatus: "local_only",
-      }));
-
-    return [...remoteList, ...localOnlyFiles];
+    return remoteList;
   });
 
   ipcMain.handle("files:trash", async (event, entityName) => {
@@ -388,8 +298,8 @@ app.whenReady().then(() => {
     }
 
     // Mark this entity and all descendants as pending_delete (both modes).
-    // Hides them from the UI immediately; the actual remote deletion is handled
-    // by the watcher (auto) or the next Sync Now (manual).
+    // Hides them from the UI immediately; the actual remote trash operation is
+    // handled by the watcher (auto) or the next Sync Now (manual).
     const markPendingDelete = (name) => {
       db.prepare(
         "UPDATE sync_state SET status = 'pending_delete' WHERE entity_name = ? AND user_id = ?",
@@ -444,11 +354,6 @@ app.whenReady().then(() => {
             mainWindow.webContents.send("sync:refresh");
           }
         },
-        (warnings) => {
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send("sync:remoteDeletedWarnings", warnings);
-          }
-        },
       );
     } else {
       stopPolling();
@@ -490,11 +395,46 @@ app.whenReady().then(() => {
   });
 
   // ─── System Tray ────────────────────────────────────────
-  const trayIcon = nativeImage
-    .createFromPath(iconPath)
-    .resize({ width: 16, height: 16, quality: "best" });
+  const trayBaseIcon = nativeImage.createFromPath(iconPath);
+  const TRAY_ICON_SIZE = 32;
+  const TRAY_BADGE_SIZE = 20;
 
-  tray = new Tray(trayIcon);
+  const trayStatusIcons = {
+    synced: compositeBadge(
+      trayBaseIcon,
+      nativeImage.createFromPath(trayStatusIconPath("synced")),
+      TRAY_ICON_SIZE,
+      TRAY_BADGE_SIZE,
+    ),
+    syncing: compositeBadge(
+      trayBaseIcon,
+      nativeImage.createFromPath(trayStatusIconPath("syncing")),
+      TRAY_ICON_SIZE,
+      TRAY_BADGE_SIZE,
+    ),
+    error: compositeBadge(
+      trayBaseIcon,
+      nativeImage.createFromPath(trayStatusIconPath("error")),
+      TRAY_ICON_SIZE,
+      TRAY_BADGE_SIZE,
+    ),
+  };
+
+  const trayStatusTooltips = {
+    synced: "PHx Drive — Up to date",
+    syncing: "PHx Drive — Syncing…",
+    error: "PHx Drive — Sync error",
+  };
+
+  const applyTrayStatus = (status) => {
+    if (!tray) return;
+    tray.setImage(trayStatusIcons[status] || trayStatusIcons.synced);
+    tray.setToolTip(trayStatusTooltips[status] || trayStatusTooltips.synced);
+  };
+
+  tray = new Tray(trayStatusIcons[getStatus()]);
+  applyTrayStatus(getStatus());
+  onStatusChange(applyTrayStatus);
 
   const contextMenu = Menu.buildFromTemplate([
     {
@@ -523,7 +463,6 @@ app.whenReady().then(() => {
     },
   ]);
 
-  tray.setToolTip("PHx Drive");
   tray.setContextMenu(contextMenu);
 
   tray.on("click", () => {

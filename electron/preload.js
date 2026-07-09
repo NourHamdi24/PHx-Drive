@@ -16,15 +16,11 @@ contextBridge.exposeInMainWorld("api", {
   getShareLink: (entityName) =>
     ipcRenderer.invoke("files:shareLink", entityName),
 
-  // Delete (permanent — local and remote)
+  // Delete (moves to trash — both local and remote)
   trashFile: (entityName) => ipcRenderer.invoke("files:trash", entityName),
 
   // Sync
   runSync: () => ipcRenderer.invoke("sync:run"),
-  resolveRemoteDeletion: (entityName, decision) =>
-    ipcRenderer.invoke("sync:resolveRemoteDeletion", entityName, decision),
-  resyncLocalOnly: (entityName) =>
-    ipcRenderer.invoke("files:resyncLocalOnly", entityName),
   startWatcher: () => ipcRenderer.invoke("sync:startWatcher"),
   stopWatcher: () => ipcRenderer.invoke("sync:stopWatcher"),
   startPolling: () => ipcRenderer.invoke("sync:startPolling"),
@@ -43,11 +39,6 @@ contextBridge.exposeInMainWorld("api", {
     const handler = () => callback();
     ipcRenderer.on("sync:refresh", handler);
     return () => ipcRenderer.removeListener("sync:refresh", handler);
-  },
-  onRemoteDeletedWarnings: (callback) => {
-    const handler = (event, warnings) => callback(warnings);
-    ipcRenderer.on("sync:remoteDeletedWarnings", handler);
-    return () => ipcRenderer.removeListener("sync:remoteDeletedWarnings", handler);
   },
   getUserSettings: () => ipcRenderer.invoke("settings:get"),
   setAutoStart: (enabled) =>

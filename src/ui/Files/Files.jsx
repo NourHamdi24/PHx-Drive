@@ -99,13 +99,6 @@ const STATUS_CONFIG = {
     color: "#ea580c",
     border: "#fed7aa",
   },
-  local_only: {
-    label: "Local only",
-    icon: "⌂",
-    bg: "#f5f3ff",
-    color: "#6d28d9",
-    border: "#ddd6fe",
-  },
   conflict: {
     label: "Conflict",
     icon: "⚠",
@@ -194,7 +187,6 @@ const ChevronIcon = () => (
 const Files = ({ files, onRefresh, syncing, onSync }) => {
   const [search, setSearch] = useState("");
   const [trashing, setTrashing] = useState(null);
-  const [resyncing, setResyncing] = useState(null);
   const [folderStack, setFolderStack] = useState([]);
 
   // ─── Navigation helpers ────────────────────────────────
@@ -235,20 +227,8 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
     alert("Link copied to clipboard!");
   };
 
-  const handleResync = async (entityName) => {
-    setResyncing(entityName);
-    try {
-      await window.api.resyncLocalOnly(entityName);
-      await onRefresh();
-    } catch (err) {
-      console.error("Resync failed:", err);
-    } finally {
-      setResyncing(null);
-    }
-  };
-
   const handleTrash = async (entityName) => {
-    if (!confirm("Permanently delete this item? This cannot be undone."))
+    if (!confirm("Move this item to trash? It will also be trashed remotely and can be restored within 30 days."))
       return;
     setTrashing(entityName);
     try {
@@ -383,7 +363,7 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
                   className={styles.colActions}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {!file.is_group && file.syncStatus !== "local_only" && (
+                  {!file.is_group && (
                     <button
                       className={styles.shareBtn}
                       onClick={() => handleShare(file.name)}
@@ -392,21 +372,11 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
                       Copy Link
                     </button>
                   )}
-                  {file.syncStatus === "local_only" && (
-                    <button
-                      className={styles.shareBtn}
-                      onClick={() => handleResync(file.name)}
-                      disabled={resyncing === file.name}
-                      title="Upload this file and resume syncing it"
-                    >
-                      {resyncing === file.name ? "…" : "Sync to Cloud"}
-                    </button>
-                  )}
                   <button
                     className={styles.trashBtn}
                     onClick={() => handleTrash(file.name)}
                     disabled={trashing === file.name}
-                    title="Delete"
+                    title="Move to trash"
                   >
                     {trashing === file.name ? "…" : "Delete"}
                   </button>
