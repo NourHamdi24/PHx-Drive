@@ -92,13 +92,6 @@ const STATUS_CONFIG = {
     color: "#9ca3af",
     border: "#e5e7eb",
   },
-  remote_deleted: {
-    label: "Not synced",
-    icon: "↕",
-    bg: "#fff7ed",
-    color: "#ea580c",
-    border: "#fed7aa",
-  },
   remote_only: {
     label: "Available remotely",
     icon: "☁",
@@ -219,7 +212,7 @@ const ChevronIcon = () => (
 
 const Files = ({ files, onRefresh, syncing, onSync }) => {
   const [search, setSearch] = useState("");
-  const [trashing, setTrashing] = useState(null);
+  const [deleting, setDeleting] = useState(null);
   const [downloading, setDownloading] = useState(null);
   const [folderStack, setFolderStack] = useState([]);
 
@@ -255,17 +248,17 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
   };
 
   // ─── Actions ───────────────────────────────────────────
-  const handleTrash = async (entityName) => {
-    if (!confirm("Move this item to trash? It will also be trashed remotely and can be restored within 30 days."))
+  const handleDelete = async (entityName) => {
+    if (!confirm("Permanently delete this item? This cannot be undone."))
       return;
-    setTrashing(entityName);
+    setDeleting(entityName);
     try {
-      await window.api.trashFile(entityName);
+      await window.api.deleteFile(entityName);
       await onRefresh();
     } catch (err) {
-      console.error("Trash failed:", err);
+      console.error("Delete failed:", err);
     } finally {
-      setTrashing(null);
+      setDeleting(null);
     }
   };
 
@@ -414,12 +407,12 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
-                    className={styles.trashBtn}
-                    onClick={() => handleTrash(file.name)}
-                    disabled={trashing === file.name}
-                    title="Move to trash"
+                    className={styles.deleteBtn}
+                    onClick={() => handleDelete(file.name)}
+                    disabled={deleting === file.name}
+                    title="Delete permanently"
                   >
-                    {trashing === file.name ? "…" : "Delete"}
+                    {deleting === file.name ? "…" : "Delete"}
                   </button>
                 </div>
               </div>

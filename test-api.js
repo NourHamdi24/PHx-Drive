@@ -7,9 +7,7 @@ const {
   downloadFile,
   uploadFile,
   createFolder,
-  trashOrRestore,
   permanentDelete,
-  listTrashedFiles,
   getTotalStorageUsed,
   getHomeFolderId,
   getShareLink,
@@ -130,36 +128,10 @@ async function runTests() {
     fail("getTotalStorageUsed", err);
   }
 
-  // ─── 10. Trash File ────────────────────────────────────
-  console.log("\n--- Trash ---");
+  // ─── 10. Permanent Delete ───────────────────────────────
+  console.log("\n--- Delete ---");
   if (uploadedFileId) {
     try {
-      await trashOrRestore(FRAPPE_URL, cookie, [uploadedFileId]);
-      pass("trashOrRestore (trash)", `trashed ${uploadedFileId}`);
-    } catch (err) {
-      fail("trashOrRestore (trash)", err);
-    }
-
-    // ─── 11. List Trashed Files ──────────────────────────
-    try {
-      const trashed = await listTrashedFiles(FRAPPE_URL, cookie);
-      pass("listTrashedFiles", `${trashed.length} items in trash`);
-    } catch (err) {
-      fail("listTrashedFiles", err);
-    }
-
-    // ─── 12. Restore File ────────────────────────────────
-    try {
-      await trashOrRestore(FRAPPE_URL, cookie, [uploadedFileId]);
-      pass("trashOrRestore (restore)", `restored ${uploadedFileId}`);
-    } catch (err) {
-      fail("trashOrRestore (restore)", err);
-    }
-
-    // ─── 13. Permanent Delete ────────────────────────────
-    try {
-      // Trash it again before permanent delete
-      await trashOrRestore(FRAPPE_URL, cookie, [uploadedFileId]);
       await permanentDelete(FRAPPE_URL, cookie, [uploadedFileId]);
       pass("permanentDelete", `permanently deleted ${uploadedFileId}`);
     } catch (err) {
@@ -167,10 +139,9 @@ async function runTests() {
     }
   }
 
-  // ─── 14. Trash and Delete Test Folder ──────────────────
+  // ─── 11. Delete Test Folder ─────────────────────────────
   if (createdFolderId) {
     try {
-      await trashOrRestore(FRAPPE_URL, cookie, [createdFolderId]);
       await permanentDelete(FRAPPE_URL, cookie, [createdFolderId]);
       pass("cleanup folder", `deleted test folder ${createdFolderId}`);
     } catch (err) {

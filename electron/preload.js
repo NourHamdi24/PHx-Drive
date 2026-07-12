@@ -14,8 +14,8 @@ contextBridge.exposeInMainWorld("api", {
   listFiles: () => ipcRenderer.invoke("files:list"),
   listFilesWithStatus: () => ipcRenderer.invoke("files:listWithStatus"),
 
-  // Delete (moves to trash — both local and remote)
-  trashFile: (entityName) => ipcRenderer.invoke("files:trash", entityName),
+  // Delete (permanently — both local and remote)
+  deleteFile: (entityName) => ipcRenderer.invoke("files:delete", entityName),
 
   // Manually download a remote-only or updated file
   downloadFile: (entityName) => ipcRenderer.invoke("files:download", entityName),

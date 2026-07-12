@@ -50,20 +50,6 @@ const createTables = (db) => {
     )
   `);
 
-  // Trash table
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS trash (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      entity_name TEXT NOT NULL,
-      title TEXT NOT NULL,
-      original_path TEXT,
-      deleted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      expires_at DATETIME,
-      source TEXT DEFAULT 'local',
-      FOREIGN KEY (user_id) REFERENCES users(id)
-    )
-  `);
   console.log("All tables created successfully");
 };
 

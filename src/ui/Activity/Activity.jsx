@@ -39,7 +39,7 @@ const ConflictIcon = () => (
   </svg>
 );
 
-const TrashIcon = () => (
+const DeleteIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="3 6 5 6 21 6" />
     <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
@@ -93,7 +93,7 @@ const TYPE_CONFIG = {
   upload:   { Icon: UploadIcon,   bg: "#FFF8E7", color: "#F59E0B" },
   download: { Icon: DownloadIcon, bg: "#EFF6FF", color: "#3B82F6" },
   conflict: { Icon: ConflictIcon, bg: "#FFF1F2", color: "#F43F5E" },
-  trash:    { Icon: TrashIcon,    bg: "#F3F4F6", color: "#6B7280" },
+  delete:   { Icon: DeleteIcon,   bg: "#F3F4F6", color: "#6B7280" },
   folder:   { Icon: FolderIcon,   bg: "#FFFBEB", color: "#D97706" },
   info:     { Icon: CheckIcon,    bg: "#F0FDF4", color: "#22C55E" },
   error:    { Icon: ErrorIcon,    bg: "#FFF1F2", color: "#EF4444" },

@@ -96,9 +96,6 @@ const handleLogout = () => {
   db.prepare(
     "DELETE FROM sync_queue WHERE user_id = (SELECT id FROM users LIMIT 1)",
   ).run();
-  db.prepare(
-    "DELETE FROM trash WHERE user_id = (SELECT id FROM users LIMIT 1)",
-  ).run();
   db.prepare("DELETE FROM users").run();
   clearCredentials();
   return { success: true };

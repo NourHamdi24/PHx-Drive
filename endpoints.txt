@@ -11,9 +11,8 @@ GET  /api/method/drive.api.files.get_file_content     - downloadFile(frappUrl, s
 POST /api/method/drive.api.files.upload_file          - uploadFile(frappUrl, sessionCookie, filePath, fileName, parentId)
 POST /api/method/drive.api.files.create_folder        - createFolder(frappUrl, sessionCookie, title, parentId)
 
-Trash
------
-POST /api/method/drive.api.files.remove_or_restore    - trashOrRestore(frappUrl, sessionCookie, entityNames)
+Delete
+------
 POST /api/method/drive.api.files.delete_entities       - permanentDelete(frappUrl, sessionCookie, entityNames)
 
 Home Folder

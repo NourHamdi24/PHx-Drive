@@ -2,7 +2,7 @@ const chokidar = require("chokidar");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
-const { uploadFile, createFolder, trashOrRestore } = require("./api");
+const { uploadFile, createFolder, permanentDelete } = require("./api");
 const { getDatabase } = require("../db/database");
 const {
   beginActivity,
@@ -10,18 +10,6 @@ const {
   reportError,
   clearError,
 } = require("./syncStatus");
-
-// ─── Trash bookkeeping (30-day retention, purged by the scheduler) ─
-const addToTrash = (db, userId, entityName, title, localPath, source) => {
-  db.prepare("DELETE FROM trash WHERE entity_name = ? AND user_id = ?").run(
-    entityName,
-    userId,
-  );
-  db.prepare(
-    `INSERT INTO trash (user_id, entity_name, title, original_path, expires_at, source)
-     VALUES (?, ?, ?, ?, datetime('now', '+30 days'), ?)`,
-  ).run(userId, entityName, title, localPath, source);
-};
 
 let watcher = null;
 const isAutoMode = () => {
@@ -293,40 +281,21 @@ const startWatcher = (user, emitLog) => {
       return;
     }
 
-    // Already reconciled by runSync mirroring a remote-side deletion —
-    // don't toggle trashOrRestore again, which would restore it remotely.
-    if (
-      existingState.status === "trashed" ||
-      existingState.status === "remote_deleted"
-    ) {
-      console.log(`Skipping sync-mirrored deletion: ${relativePath}`);
-      return;
-    }
-
     console.log(`File deleted locally: ${relativePath}`);
     emitLog(`Deleting: ${path.basename(filePath)}`);
 
     beginActivity();
     try {
-      // Move to trash on Frappe (soft delete — restorable)
-      await trashOrRestore(frappe_url, session_cookie, [
+      await permanentDelete(frappe_url, session_cookie, [
         existingState.entity_name,
       ]);
 
       db.prepare(
-        "UPDATE sync_state SET status = 'trashed' WHERE entity_name = ? AND user_id = ?",
+        "DELETE FROM sync_state WHERE entity_name = ? AND user_id = ?",
       ).run(existingState.entity_name, userId);
-      addToTrash(
-        db,
-        userId,
-        existingState.entity_name,
-        existingState.title,
-        filePath,
-        "local",
-      );
 
       emitLog(`Deleted: ${path.basename(filePath)} ✅`);
-      console.log(`Trashed on Frappe: ${relativePath}`);
+      console.log(`Deleted on Frappe: ${relativePath}`);
       clearError();
     } catch (err) {
       emitLog(`Delete failed: ${path.basename(filePath)} ❌`);
@@ -373,34 +342,18 @@ const startWatcher = (user, emitLog) => {
       return;
     }
 
-    if (
-      existingState.status === "trashed" ||
-      existingState.status === "remote_deleted"
-    ) {
-      console.log(`Skipping sync-mirrored folder deletion: ${relativePath}`);
-      return;
-    }
-
     console.log(`Folder deleted locally: ${relativePath}`);
     emitLog(`Deleting folder: ${path.basename(dirPath)}`);
 
     beginActivity();
     try {
-      await trashOrRestore(frappe_url, session_cookie, [
+      await permanentDelete(frappe_url, session_cookie, [
         existingState.entity_name,
       ]);
 
       db.prepare(
-        "UPDATE sync_state SET status = 'trashed' WHERE entity_name = ? AND user_id = ?",
+        "DELETE FROM sync_state WHERE entity_name = ? AND user_id = ?",
       ).run(existingState.entity_name, userId);
-      addToTrash(
-        db,
-        userId,
-        existingState.entity_name,
-        existingState.title,
-        dirPath,
-        "local",
-      );
 
       emitLog(`Deleted folder: ${path.basename(dirPath)} ✅`);
       console.log(`Folder deleted on Frappe: ${relativePath}`);

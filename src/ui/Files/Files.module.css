@@ -346,7 +346,7 @@
 
 /* ─── Action buttons ─────────────────────────────────────── */
 
-.trashBtn {
+.deleteBtn {
   padding: 5px 10px;
   border-radius: 6px;
   border: 1px solid transparent;
@@ -359,11 +359,11 @@
   white-space: nowrap;
 }
 
-.trashBtn:hover {
+.deleteBtn:hover {
   background: var(--accent-soft-bg);
 }
 
-.trashBtn:disabled {
+.deleteBtn:disabled {
   opacity: 0.4;
   cursor: default;
 }

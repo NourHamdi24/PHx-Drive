@@ -18,7 +18,6 @@ const {
 const { runSync, saveSyncState } = require("../src/sync/sync");
 const { startWatcher, stopWatcher, markSyncWrite } = require("../src/sync/watcher");
 const { startPolling, stopPolling } = require("../src/sync/poller");
-const { startScheduler } = require("../src/sync/scheduler");
 const { startQueueProcessor } = require("../src/sync/queueProcessor");
 const { getStatus, onStatusChange } = require("../src/sync/syncStatus");
 let mainWindow = null;
@@ -268,7 +267,7 @@ app.whenReady().then(() => {
     return remoteList;
   });
 
-  ipcMain.handle("files:trash", async (event, entityName) => {
+  ipcMain.handle("files:delete", async (event, entityName) => {
     const db = getDatabase();
     const user = db.prepare("SELECT * FROM users LIMIT 1").get();
     if (!user) return { success: false };
@@ -291,7 +290,7 @@ app.whenReady().then(() => {
     }
 
     // Mark this entity and all descendants as pending_delete (both modes).
-    // Hides them from the UI immediately; the actual remote trash operation is
+    // Hides them from the UI immediately; the actual remote delete is
     // handled by the watcher (auto) or the next Sync Now (manual).
     const markPendingDelete = (name) => {
       db.prepare(
@@ -508,7 +507,6 @@ app.whenReady().then(() => {
   });
 
   // ─── Start Background Services ──────────────────────────
-  startScheduler();
   startQueueProcessor();
 
   createWindow();

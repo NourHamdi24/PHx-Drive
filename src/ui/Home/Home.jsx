@@ -32,9 +32,9 @@ const parseLogMessage = (message) => {
     return { type: "download", fileName: message.replace(/^Downloaded:\s*/, "").replace(/\s*✅\s*$/, "").trim(), label: "Downloaded from cloud" };
 
   if (/^Deleting:\s*/i.test(message))
-    return { type: "trash", fileName: message.replace(/^Deleting:\s*/i, "").trim(), label: "Moving to trash" };
+    return { type: "delete", fileName: message.replace(/^Deleting:\s*/i, "").trim(), label: "Deleting" };
   if (/^Deleted:\s*/.test(message))
-    return { type: "trash", fileName: message.replace(/^Deleted:\s*/, "").replace(/\s*✅\s*$/, "").trim(), label: "Moved to trash" };
+    return { type: "delete", fileName: message.replace(/^Deleted:\s*/, "").replace(/\s*✅\s*$/, "").trim(), label: "Deleted" };
   if (/^Delete failed:\s*/.test(message))
     return { type: "error", fileName: message.replace(/^Delete failed:\s*/, "").replace(/\s*❌\s*$/, "").trim(), label: "Delete failed" };
 

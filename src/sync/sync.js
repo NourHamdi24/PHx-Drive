@@ -5,8 +5,6 @@ const {
   uploadFile,
   createFolder,
   permanentDelete,
-  trashOrRestore,
-  listTrashedFiles,
 } = require("./api");
 const { getDatabase } = require("../db/database");
 const {
@@ -16,25 +14,6 @@ const {
   clearError,
 } = require("./syncStatus");
 const { markSyncWrite } = require("./watcher");
-
-// ─── Trash bookkeeping (30-day retention, purged by the scheduler) ─
-const addToTrash = (db, userId, entityName, title, localPath, source) => {
-  db.prepare("DELETE FROM trash WHERE entity_name = ? AND user_id = ?").run(
-    entityName,
-    userId,
-  );
-  db.prepare(
-    `INSERT INTO trash (user_id, entity_name, title, original_path, expires_at, source)
-     VALUES (?, ?, ?, ?, datetime('now', '+30 days'), ?)`,
-  ).run(userId, entityName, title, localPath, source);
-};
-
-const removeFromTrash = (db, userId, entityName) => {
-  db.prepare("DELETE FROM trash WHERE entity_name = ? AND user_id = ?").run(
-    entityName,
-    userId,
-  );
-};
 
 const removeLocalPath = (fullPath) => {
   if (!fs.existsSync(fullPath)) return;
@@ -161,7 +140,7 @@ const runSync = async ({ manual = false } = {}) => {
     if (state.local_path) localPathStateMap[state.local_path] = state;
   }
 
-  // ─── Step 3.5: Push local deletions to remote trash ────
+  // ─── Step 3.5: Push local deletions to remote ──────────
   // Covers two cases:
   //   'pending_delete' — file was deleted via the app UI in manual mode
   //   'synced' with missing file — file was removed from disk since last sync (manual mode)
@@ -177,20 +156,19 @@ const runSync = async ({ manual = false } = {}) => {
     console.log(`Local deletion detected: ${state.title}`);
     if (remoteByEntityName.has(state.entity_name)) {
       try {
-        await trashOrRestore(frappe_url, session_cookie, [state.entity_name]);
-        console.log(`Trashed remotely: ${state.title}`);
+        await permanentDelete(frappe_url, session_cookie, [state.entity_name]);
+        console.log(`Deleted remotely: ${state.title}`);
       } catch (err) {
         console.error(
-          `Failed to trash remotely ${state.entity_name}:`,
+          `Failed to delete remotely ${state.entity_name}:`,
           err.message,
         );
         continue; // leave state untouched so this is retried next sync
       }
     }
     db.prepare(
-      "UPDATE sync_state SET status = 'trashed' WHERE entity_name = ? AND user_id = ?",
+      "DELETE FROM sync_state WHERE entity_name = ? AND user_id = ?",
     ).run(state.entity_name, user.id);
-    addToTrash(db, user.id, state.entity_name, state.title, state.local_path, "local");
     locallyDeletedEntities.add(state.entity_name);
   }
 
@@ -223,10 +201,6 @@ const runSync = async ({ manual = false } = {}) => {
       }
       console.log(`Available remotely (awaiting manual download): ${file.relativePath}`);
       saveSyncState(db, user.id, file, localPath, "remote_only");
-      if (existingState?.status === "trashed") {
-        console.log(`Restored: ${file.relativePath}`);
-        removeFromTrash(db, user.id, file.name);
-      }
     } else if (existingState) {
       const localStat = fs.statSync(localPath);
       const localModifiedTime = localStat.mtime.toISOString();
@@ -269,16 +243,7 @@ const runSync = async ({ manual = false } = {}) => {
     }
   }
 
-  // ─── Step 4.5: Fetch remote trash to detect remote-initiated deletes ──
-  let remoteTrashedSet = new Set();
-  try {
-    const trashedRemoteFiles = await listTrashedFiles(frappe_url, session_cookie);
-    remoteTrashedSet = new Set(trashedRemoteFiles.map((f) => f.name));
-  } catch (err) {
-    console.error("Failed to fetch remote trash:", err.message);
-  }
-
-  // ─── Step 5: Local → Remote (upload new; mirror remote trash) ──
+  // ─── Step 5: Local → Remote (upload new; mirror remote deletes) ──
   console.log("Checking local → remote...");
   for (const [relativePath, localFile] of Object.entries(localFiles)) {
     const existsOnRemote = remoteFiles.find(
@@ -289,22 +254,13 @@ const runSync = async ({ manual = false } = {}) => {
       const prevState = localPathStateMap[localFile.fullPath];
 
       if (prevState) {
-        // File was previously known — remote side no longer has it.
+        // File was previously known — remote side no longer has it. Mirror the delete locally.
         if (prevState.status === "synced") {
-          if (remoteTrashedSet.has(prevState.entity_name)) {
-            // Remote trashed it — mirror the delete locally.
-            console.log(`Remote deletion detected, trashing locally: ${relativePath}`);
-            removeLocalPath(localFile.fullPath);
-            db.prepare(
-              "UPDATE sync_state SET status = 'trashed' WHERE entity_name = ? AND user_id = ?",
-            ).run(prevState.entity_name, user.id);
-            addToTrash(db, user.id, prevState.entity_name, prevState.title, localFile.fullPath, "remote");
-          } else {
-            // Gone from remote but not in trash either — ambiguous, don't touch local.
-            db.prepare(
-              "UPDATE sync_state SET status = 'remote_deleted' WHERE entity_name = ? AND user_id = ?",
-            ).run(prevState.entity_name, user.id);
-          }
+          console.log(`Remote deletion detected, deleting locally: ${relativePath}`);
+          removeLocalPath(localFile.fullPath);
+          db.prepare(
+            "DELETE FROM sync_state WHERE entity_name = ? AND user_id = ?",
+          ).run(prevState.entity_name, user.id);
         }
         continue;
       }
