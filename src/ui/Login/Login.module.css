@@ -108,6 +108,33 @@
   border-color: var(--accent);
 }
 
+.passwordInputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.passwordInputWrapper input {
+  width: 100%;
+  padding-right: 56px;
+}
+
+.togglePasswordBtn {
+  position: absolute;
+  right: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 6px 10px;
+}
+
+.togglePasswordBtn:hover {
+  color: var(--accent);
+}
+
 .loginBtn {
   width: 100%;
   background-color: var(--accent);
