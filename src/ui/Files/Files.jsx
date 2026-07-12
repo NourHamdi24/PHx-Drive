@@ -99,6 +99,20 @@ const STATUS_CONFIG = {
     color: "#ea580c",
     border: "#fed7aa",
   },
+  remote_only: {
+    label: "Available remotely",
+    icon: "☁",
+    bg: "#eff6ff",
+    color: "#2563eb",
+    border: "#bfdbfe",
+  },
+  remote_changed: {
+    label: "Update available",
+    icon: "⭳",
+    bg: "#eff6ff",
+    color: "#2563eb",
+    border: "#bfdbfe",
+  },
   conflict: {
     label: "Conflict",
     icon: "⚠",
@@ -123,8 +137,27 @@ const STATUS_CONFIG = {
   },
 };
 
-const StatusBadge = ({ status }) => {
+const StatusBadge = ({ status, onDownload, downloading }) => {
   const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
+
+  if (onDownload) {
+    return (
+      <button
+        type="button"
+        className={styles.statusBadgeAction}
+        style={{ background: cfg.bg, color: cfg.color, borderColor: cfg.border }}
+        onClick={onDownload}
+        disabled={downloading}
+        title="Download this file"
+      >
+        <span className={downloading ? styles.spinIcon : styles.statusIcon}>
+          {downloading ? "↻" : "⭳"}
+        </span>
+        <span>{downloading ? "Downloading" : "Download"}</span>
+      </button>
+    );
+  }
+
   return (
     <div
       className={styles.statusBadge}
@@ -187,6 +220,7 @@ const ChevronIcon = () => (
 const Files = ({ files, onRefresh, syncing, onSync }) => {
   const [search, setSearch] = useState("");
   const [trashing, setTrashing] = useState(null);
+  const [downloading, setDownloading] = useState(null);
   const [folderStack, setFolderStack] = useState([]);
 
   // ─── Navigation helpers ────────────────────────────────
@@ -221,12 +255,6 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
   };
 
   // ─── Actions ───────────────────────────────────────────
-  const handleShare = async (entityName) => {
-    const link = await window.api.getShareLink(entityName);
-    navigator.clipboard.writeText(link);
-    alert("Link copied to clipboard!");
-  };
-
   const handleTrash = async (entityName) => {
     if (!confirm("Move this item to trash? It will also be trashed remotely and can be restored within 30 days."))
       return;
@@ -238,6 +266,18 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
       console.error("Trash failed:", err);
     } finally {
       setTrashing(null);
+    }
+  };
+
+  const handleDownload = async (entityName) => {
+    setDownloading(entityName);
+    try {
+      await window.api.downloadFile(entityName);
+      await onRefresh();
+    } catch (err) {
+      console.error("Download failed:", err);
+    } finally {
+      setDownloading(null);
     }
   };
 
@@ -355,23 +395,24 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
                   {formatDate(file.modified)}
                 </span>
                 <span className={styles.colStatus}>
-                  <StatusBadge
-                    status={isFileSyncing(file) ? "syncing" : file.syncStatus}
-                  />
+                  {!file.is_group &&
+                  (file.syncStatus === "remote_only" ||
+                    file.syncStatus === "remote_changed") ? (
+                    <StatusBadge
+                      status={file.syncStatus}
+                      onDownload={() => handleDownload(file.name)}
+                      downloading={downloading === file.name}
+                    />
+                  ) : (
+                    <StatusBadge
+                      status={isFileSyncing(file) ? "syncing" : file.syncStatus}
+                    />
+                  )}
                 </span>
                 <div
                   className={styles.colActions}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {!file.is_group && (
-                    <button
-                      className={styles.shareBtn}
-                      onClick={() => handleShare(file.name)}
-                      title="Copy share link"
-                    >
-                      Copy Link
-                    </button>
-                  )}
                   <button
                     className={styles.trashBtn}
                     onClick={() => handleTrash(file.name)}

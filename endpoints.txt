@@ -1,0 +1,23 @@
+Auth
+----
+POST /api/method/login                              - login(frappUrl, email, password)
+GET  /api/method/frappe.auth.get_logged_user         - getLoggedUser(frappUrl, sessionCookie)
+GET  /api/resource/User/:email                       - getUserProfile(frappUrl, sessionCookie, email)
+
+Files
+-----
+GET  /api/method/drive.api.list.files                - listFiles(frappUrl, sessionCookie, folderId, isActive)
+GET  /api/method/drive.api.files.get_file_content     - downloadFile(frappUrl, sessionCookie, entityName, destPath)
+POST /api/method/drive.api.files.upload_file          - uploadFile(frappUrl, sessionCookie, filePath, fileName, parentId)
+POST /api/method/drive.api.files.create_folder        - createFolder(frappUrl, sessionCookie, title, parentId)
+
+Trash
+-----
+POST /api/method/drive.api.files.remove_or_restore    - trashOrRestore(frappUrl, sessionCookie, entityNames)
+POST /api/method/drive.api.files.delete_entities       - permanentDelete(frappUrl, sessionCookie, entityNames)
+
+Home Folder
+-----------
+GET  /api/method/drive.api.files.get_home_folder_id     - getHomeFolderId(frappUrl, sessionCookie)
+
+

@@ -222,12 +222,12 @@
 }
 
 .colStatus {
-  width: 120px;
+  width: 140px;
   flex-shrink: 0;
 }
 
 .colActions {
-  width: 140px;
+  width: 90px;
   display: flex;
   gap: 6px;
   align-items: center;
@@ -303,6 +303,29 @@
   white-space: nowrap;
 }
 
+.statusBadgeAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  border: 1px solid;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: filter 0.12s;
+}
+
+.statusBadgeAction:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+
+.statusBadgeAction:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
 .statusIcon {
   font-size: 11px;
   line-height: 1;
@@ -322,24 +345,6 @@
 }
 
 /* ─── Action buttons ─────────────────────────────────────── */
-
-.shareBtn {
-  padding: 5px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-hover);
-  color: var(--text-body);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
-  white-space: nowrap;
-}
-
-.shareBtn:hover {
-  background: var(--border-soft);
-  border-color: var(--text-faint);
-}
 
 .trashBtn {
   padding: 5px 10px;

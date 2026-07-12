@@ -15,8 +15,8 @@ const {
   handleAutoLogin,
   handleLogout,
 } = require("../src/auth/authHandler");
-const { runSync } = require("../src/sync/sync");
-const { startWatcher, stopWatcher } = require("../src/sync/watcher");
+const { runSync, saveSyncState } = require("../src/sync/sync");
+const { startWatcher, stopWatcher, markSyncWrite } = require("../src/sync/watcher");
 const { startPolling, stopPolling } = require("../src/sync/poller");
 const { startScheduler } = require("../src/sync/scheduler");
 const { startQueueProcessor } = require("../src/sync/queueProcessor");
@@ -239,13 +239,6 @@ app.whenReady().then(() => {
     return remoteFiles.filter((f) => !pendingDeletes.has(f.name));
   });
 
-  ipcMain.handle("files:shareLink", (event, entityName) => {
-    const db = getDatabase();
-    const user = db.prepare("SELECT * FROM users LIMIT 1").get();
-    const { getShareLink } = require("../src/sync/api");
-    return getShareLink(user.frappe_url, entityName);
-  });
-
   ipcMain.handle("files:listWithStatus", async () => {
     const db = getDatabase();
     const user = db.prepare("SELECT * FROM users LIMIT 1").get();
@@ -314,6 +307,50 @@ app.whenReady().then(() => {
     markPendingDelete(entityName);
 
     return { success: true };
+  });
+
+  ipcMain.handle("files:download", async (event, entityName) => {
+    const db = getDatabase();
+    const user = db.prepare("SELECT * FROM users LIMIT 1").get();
+    if (!user) return { success: false };
+
+    const state = db
+      .prepare("SELECT * FROM sync_state WHERE entity_name = ? AND user_id = ?")
+      .get(entityName, user.id);
+    if (!state || !state.local_path) return { success: false };
+
+    const fs = require("fs");
+    const path = require("path");
+    const { downloadFile } = require("../src/sync/api");
+
+    try {
+      fs.mkdirSync(path.dirname(state.local_path), { recursive: true });
+      await downloadFile(
+        user.frappe_url,
+        user.session_cookie,
+        entityName,
+        state.local_path,
+      );
+      markSyncWrite(state.local_path);
+      saveSyncState(
+        db,
+        user.id,
+        {
+          name: entityName,
+          title: state.title,
+          modified: state.modified,
+          file_size: state.file_size,
+          is_group: state.is_group,
+          parent_drive_entity: state.parent_drive_entity,
+        },
+        state.local_path,
+        "synced",
+      );
+      return { success: true };
+    } catch (err) {
+      console.error(`Failed to download ${entityName}:`, err.message);
+      return { success: false, error: err.message };
+    }
   });
 
   // ─── Settings ───────────────────────────────────────────

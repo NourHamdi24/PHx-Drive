@@ -2,7 +2,6 @@ const fs = require("fs");
 const path = require("path");
 const {
   listFiles,
-  downloadFile,
   uploadFile,
   createFolder,
   permanentDelete,
@@ -16,6 +15,7 @@ const {
   reportError,
   clearError,
 } = require("./syncStatus");
+const { markSyncWrite } = require("./watcher");
 
 // ─── Trash bookkeeping (30-day retention, purged by the scheduler) ─
 const addToTrash = (db, userId, entityName, title, localPath, source) => {
@@ -205,6 +205,7 @@ const runSync = async ({ manual = false } = {}) => {
     if (file.is_group) {
       if (!fs.existsSync(localPath)) {
         fs.mkdirSync(localPath, { recursive: true });
+        markSyncWrite(localPath);
         console.log(`Created folder: ${file.relativePath}`);
       }
       saveSyncState(db, user.id, file, localPath, "synced");
@@ -214,16 +215,14 @@ const runSync = async ({ manual = false } = {}) => {
     const localExists = fs.existsSync(localPath);
 
     if (!localExists) {
-      console.log(`Downloading: ${file.relativePath}`);
-      fs.mkdirSync(path.dirname(localPath), { recursive: true });
       if (!file.mime_type && file.file_kind === "Document" && !file.file_ext) {
         console.log(
           `Skipping Drive document (not downloadable): ${file.relativePath}`,
         );
         continue;
       }
-      await downloadFile(frappe_url, session_cookie, file.name, localPath);
-      saveSyncState(db, user.id, file, localPath, "synced");
+      console.log(`Available remotely (awaiting manual download): ${file.relativePath}`);
+      saveSyncState(db, user.id, file, localPath, "remote_only");
       if (existingState?.status === "trashed") {
         console.log(`Restored: ${file.relativePath}`);
         removeFromTrash(db, user.id, file.name);
@@ -236,9 +235,8 @@ const runSync = async ({ manual = false } = {}) => {
       const remoteChanged = file.modified !== existingState.modified;
 
       if (remoteChanged && !localChanged) {
-        console.log(`Remote update: ${file.relativePath}`);
-        await downloadFile(frappe_url, session_cookie, file.name, localPath);
-        saveSyncState(db, user.id, file, localPath, "synced");
+        console.log(`Remote update available (awaiting manual download): ${file.relativePath}`);
+        saveSyncState(db, user.id, file, localPath, "remote_changed");
       } else if (localChanged && !remoteChanged) {
         console.log(`Local edit detected, replacing remote: ${file.relativePath}`);
         try {

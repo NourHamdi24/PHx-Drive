@@ -29,8 +29,14 @@ const isAutoMode = () => {
   const user = db.prepare("SELECT sync_mode FROM users LIMIT 1").get();
   return user?.sync_mode === "auto";
 };
-// Skip list — files Node itself is writing (to prevent upload loops)
+// Skip list — paths the sync engine itself is about to create/write, so the
+// watcher doesn't loop them back into a redundant (or duplicate-creating) upload.
+// Entries self-expire in case the corresponding fs event never fires.
 const skipList = new Set();
+const markSyncWrite = (filePath) => {
+  skipList.add(filePath);
+  setTimeout(() => skipList.delete(filePath), 3000);
+};
 
 // ─── Save or update sync state ─────────────────────────────
 const saveSyncState = (
@@ -127,8 +133,10 @@ const startWatcher = (user, emitLog) => {
   // ─── File Added ──────────────────────────────────────────
   watcher.on("add", async (filePath) => {
     if (!isAutoMode()) return;
-    if (skipList.has(filePath)) return;
-    if (skipList.has(filePath)) return;
+    if (skipList.has(filePath)) {
+      skipList.delete(filePath);
+      return;
+    }
 
     const db = getDatabase();
     const relativePath = path
@@ -195,8 +203,10 @@ const startWatcher = (user, emitLog) => {
   // ─── File Changed ────────────────────────────────────────
   watcher.on("change", async (filePath) => {
     if (!isAutoMode()) return;
-    if (skipList.has(filePath)) return;
-    if (skipList.has(filePath)) return;
+    if (skipList.has(filePath)) {
+      skipList.delete(filePath);
+      return;
+    }
 
     const db = getDatabase();
     const relativePath = path
@@ -261,30 +271,43 @@ const startWatcher = (user, emitLog) => {
   // ─── File Deleted ────────────────────────────────────────
   watcher.on("unlink", async (filePath) => {
     if (!isAutoMode()) return;
-    if (skipList.has(filePath)) return;
-    if (skipList.has(filePath)) return;
+    if (skipList.has(filePath)) {
+      skipList.delete(filePath);
+      return;
+    }
 
     const db = getDatabase();
     const relativePath = path
       .relative(sync_folder_path, filePath)
       .replace(/\\/g, "/");
+
+    // Find the entity in sync state
+    const existingState = db
+      .prepare(
+        "SELECT * FROM sync_state WHERE local_path = ? AND user_id = ?",
+      )
+      .get(filePath, userId);
+
+    if (!existingState) {
+      console.log(`No sync state found for deleted file: ${relativePath}`);
+      return;
+    }
+
+    // Already reconciled by runSync mirroring a remote-side deletion —
+    // don't toggle trashOrRestore again, which would restore it remotely.
+    if (
+      existingState.status === "trashed" ||
+      existingState.status === "remote_deleted"
+    ) {
+      console.log(`Skipping sync-mirrored deletion: ${relativePath}`);
+      return;
+    }
+
     console.log(`File deleted locally: ${relativePath}`);
     emitLog(`Deleting: ${path.basename(filePath)}`);
 
     beginActivity();
     try {
-      // Find the entity in sync state
-      const existingState = db
-        .prepare(
-          "SELECT * FROM sync_state WHERE local_path = ? AND user_id = ?",
-        )
-        .get(filePath, userId);
-
-      if (!existingState) {
-        console.log(`No sync state found for deleted file: ${relativePath}`);
-        return;
-      }
-
       // Move to trash on Frappe (soft delete — restorable)
       await trashOrRestore(frappe_url, session_cookie, [
         existingState.entity_name,
@@ -329,28 +352,40 @@ const startWatcher = (user, emitLog) => {
   // ─── Folder Deleted ──────────────────────────────────────
   watcher.on("unlinkDir", async (dirPath) => {
     if (!isAutoMode()) return;
-    if (skipList.has(dirPath)) return;
+    if (skipList.has(dirPath)) {
+      skipList.delete(dirPath);
+      return;
+    }
 
     const db = getDatabase();
     const relativePath = path
       .relative(sync_folder_path, dirPath)
       .replace(/\\/g, "/");
+
+    const existingState = db
+      .prepare(
+        "SELECT * FROM sync_state WHERE local_path = ? AND user_id = ?",
+      )
+      .get(dirPath, userId);
+
+    if (!existingState) {
+      console.log(`No sync state found for deleted folder: ${relativePath}`);
+      return;
+    }
+
+    if (
+      existingState.status === "trashed" ||
+      existingState.status === "remote_deleted"
+    ) {
+      console.log(`Skipping sync-mirrored folder deletion: ${relativePath}`);
+      return;
+    }
+
     console.log(`Folder deleted locally: ${relativePath}`);
     emitLog(`Deleting folder: ${path.basename(dirPath)}`);
 
     beginActivity();
     try {
-      const existingState = db
-        .prepare(
-          "SELECT * FROM sync_state WHERE local_path = ? AND user_id = ?",
-        )
-        .get(dirPath, userId);
-
-      if (!existingState) {
-        console.log(`No sync state found for deleted folder: ${relativePath}`);
-        return;
-      }
-
       await trashOrRestore(frappe_url, session_cookie, [
         existingState.entity_name,
       ]);
@@ -394,9 +429,11 @@ const startWatcher = (user, emitLog) => {
   // ─── Folder Added ────────────────────────────────────────
   watcher.on("addDir", async (dirPath) => {
     if (!isAutoMode()) return;
-    if (dirPath === sync_folder_path) return;
     if (dirPath === sync_folder_path) return; // ignore root folder
-    if (skipList.has(dirPath)) return;
+    if (skipList.has(dirPath)) {
+      skipList.delete(dirPath);
+      return;
+    }
 
     const db = getDatabase();
     const relativePath = path
@@ -465,4 +502,5 @@ const stopWatcher = () => {
 module.exports = {
   startWatcher,
   stopWatcher,
+  markSyncWrite,
 };

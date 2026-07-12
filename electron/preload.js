@@ -13,11 +13,12 @@ contextBridge.exposeInMainWorld("api", {
   // Files
   listFiles: () => ipcRenderer.invoke("files:list"),
   listFilesWithStatus: () => ipcRenderer.invoke("files:listWithStatus"),
-  getShareLink: (entityName) =>
-    ipcRenderer.invoke("files:shareLink", entityName),
 
   // Delete (moves to trash — both local and remote)
   trashFile: (entityName) => ipcRenderer.invoke("files:trash", entityName),
+
+  // Manually download a remote-only or updated file
+  downloadFile: (entityName) => ipcRenderer.invoke("files:download", entityName),
 
   // Sync
   runSync: () => ipcRenderer.invoke("sync:run"),
