@@ -161,14 +161,29 @@ const uploadFile = async (
 
 const createFolder = async (frappUrl, sessionCookie, title, parentId) => {
   const client = createClient(frappUrl, sessionCookie);
-  const response = await client.post(
-    "/api/method/drive.api.files.create_folder",
-    {
-      title,
-      parent: parentId,
-    },
-  );
-  return response.data.message;
+  try {
+    const response = await client.post(
+      "/api/method/drive.api.files.create_folder",
+      {
+        title,
+        parent: parentId,
+      },
+    );
+    return response.data.message;
+  } catch (err) {
+    if (err.response?.data?.exc_type !== "FileExistsError") throw err;
+
+    // create_folder enforces name-uniqueness against trashed entities too, so a
+    // folder that was trashed and re-created locally under the same name looks
+    // free to us (listFiles only returns is_active=1 items) but collides on the
+    // server. Restore the trashed one instead of failing the whole sync.
+    const trashed = await listFiles(frappUrl, sessionCookie, parentId, 0);
+    const match = trashed.find((f) => f.is_group && f.title === title);
+    if (!match) throw err;
+
+    await trashOrRestore(frappUrl, sessionCookie, [match.name]);
+    return match;
+  }
 };
 
 // ─── Trash ─────────────────────────────────────────────────────

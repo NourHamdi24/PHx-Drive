@@ -20,6 +20,7 @@ const { startWatcher, stopWatcher, markSyncWrite } = require("../src/sync/watche
 const { startPolling, stopPolling } = require("../src/sync/poller");
 const { startQueueProcessor } = require("../src/sync/queueProcessor");
 const { getStatus, onStatusChange } = require("../src/sync/syncStatus");
+const { withSyncLock } = require("../src/sync/syncLock");
 let mainWindow = null;
 let tray = null;
 
@@ -28,28 +29,34 @@ async function downloadEntityFile(db, user, entityName, state) {
   const path = require("path");
   const { downloadFile } = require("../src/sync/api");
 
-  fs.mkdirSync(path.dirname(state.local_path), { recursive: true });
-  await downloadFile(
-    user.frappe_url,
-    user.session_cookie,
-    entityName,
-    state.local_path,
-  );
-  markSyncWrite(state.local_path);
-  saveSyncState(
-    db,
-    user.id,
-    {
-      name: entityName,
-      title: state.title,
-      modified: state.modified,
-      file_size: state.file_size,
-      is_group: state.is_group,
-      parent_drive_entity: state.parent_drive_entity,
-    },
-    state.local_path,
-    "synced",
-  );
+  // Runs under the shared sync lock so the auto-sync poller can't run a
+  // full resync mid-download and see the local file appear before this
+  // download's own sync_state write lands — which it would otherwise
+  // misread as a local edit or a remote deletion and delete/replace it.
+  await withSyncLock(async () => {
+    fs.mkdirSync(path.dirname(state.local_path), { recursive: true });
+    await downloadFile(
+      user.frappe_url,
+      user.session_cookie,
+      entityName,
+      state.local_path,
+    );
+    markSyncWrite(state.local_path);
+    saveSyncState(
+      db,
+      user.id,
+      {
+        name: entityName,
+        title: state.title,
+        modified: state.modified,
+        file_size: state.file_size,
+        is_group: state.is_group,
+        parent_drive_entity: state.parent_drive_entity,
+      },
+      state.local_path,
+      "synced",
+    );
+  });
 }
 
 const iconPath = app.isPackaged
@@ -197,7 +204,7 @@ app.whenReady().then(() => {
 
   // ─── Sync ───────────────────────────────────────────────
   ipcMain.handle("sync:run", async () => {
-    return await runSync({ manual: true });
+    return await withSyncLock(() => runSync({ manual: true }));
   });
 
   ipcMain.handle("sync:startWatcher", () => {
@@ -538,7 +545,7 @@ app.whenReady().then(() => {
     {
       label: "Sync Now",
       click: async () => {
-        await runSync();
+        await withSyncLock(() => runSync());
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send("sync:refresh");
         }
