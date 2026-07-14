@@ -214,6 +214,7 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
   const [search, setSearch] = useState("");
   const [deleting, setDeleting] = useState(null);
   const [downloading, setDownloading] = useState(null);
+  const [opening, setOpening] = useState(null);
   const [folderStack, setFolderStack] = useState([]);
 
   // ─── Navigation helpers ────────────────────────────────
@@ -271,6 +272,22 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
       console.error("Download failed:", err);
     } finally {
       setDownloading(null);
+    }
+  };
+
+  const handleOpenFile = async (entityName) => {
+    setOpening(entityName);
+    try {
+      const result = await window.api.openFile(entityName);
+      if (!result?.success) {
+        alert("Couldn't open this file. Please try again.");
+      }
+      await onRefresh();
+    } catch (err) {
+      console.error("Open failed:", err);
+      alert("Couldn't open this file. Please try again.");
+    } finally {
+      setOpening(null);
     }
   };
 
@@ -365,9 +382,13 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
             {filtered.map((file) => (
               <div
                 key={file.name}
-                className={`${styles.row} ${file.is_group ? styles.folderRow : ""}`}
+                className={`${styles.row} ${styles.clickableRow} ${
+                  opening === file.name ? styles.rowOpening : ""
+                }`}
                 onClick={
-                  file.is_group ? () => handleFolderOpen(file) : undefined
+                  file.is_group
+                    ? () => handleFolderOpen(file)
+                    : () => handleOpenFile(file.name)
                 }
               >
                 <div className={styles.colName}>
@@ -387,7 +408,10 @@ const Files = ({ files, onRefresh, syncing, onSync }) => {
                 <span className={styles.colDate}>
                   {formatDate(file.modified)}
                 </span>
-                <span className={styles.colStatus}>
+                <span
+                  className={styles.colStatus}
+                  onClick={(e) => e.stopPropagation()}
+                >
                   {!file.is_group &&
                   (file.syncStatus === "remote_only" ||
                     file.syncStatus === "remote_changed") ? (

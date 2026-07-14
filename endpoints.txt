@@ -2,7 +2,9 @@ Auth
 ----
 POST /api/method/login                              - login(frappUrl, email, password)
 GET  /api/method/frappe.auth.get_logged_user         - getLoggedUser(frappUrl, sessionCookie)
-GET  /api/resource/User/:email                       - getUserProfile(frappUrl, sessionCookie, email)
+GET  /api/method/frappe.client.get                    - getUserProfile(frappUrl, sessionCookie, email)
+POST /api/method/frappe.desk.page.user_profile.user_profile.get_user_rank - getUserRank(frappUrl, sessionCookie, email)
+POST /api/method/frappe.desk.page.user_profile.user_profile.get_energy_points_list - getEnergyPoints(frappUrl, sessionCookie, email, start, limit)
 
 Files
 -----

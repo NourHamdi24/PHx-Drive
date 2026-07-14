@@ -117,6 +117,99 @@
   white-space: nowrap;
 }
 
+.accountMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color);
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  color: var(--text-body);
+  background: var(--bg-hover);
+  padding: 5px 10px;
+  border-radius: 8px;
+}
+
+.metaLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* ─── Energy points ───────────────────────────────────────── */
+.pointsList {
+  display: flex;
+  flex-direction: column;
+}
+
+.pointsRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.pointsRow:not(:last-child) {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.pointsRow:first-child {
+  padding-top: 0;
+}
+
+.pointsRow:last-child {
+  padding-bottom: 0;
+}
+
+.pointsValue {
+  min-width: 40px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.pointsPositive {
+  color: var(--accent);
+  background: var(--accent-soft-bg);
+}
+
+.pointsNegative {
+  color: var(--error);
+  background: var(--accent-soft-bg);
+}
+
+.pointsInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pointsReason {
+  font-size: 13px;
+  color: var(--text-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pointsDate {
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
 /* ─── Sync folder ─────────────────────────────────────────── */
 .folderRow {
   display: flex;

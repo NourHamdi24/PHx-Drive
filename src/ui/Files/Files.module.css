@@ -188,12 +188,17 @@
   background: var(--bg-hover);
 }
 
-.folderRow {
+.clickableRow {
   cursor: pointer;
 }
 
-.folderRow:hover {
+.clickableRow:hover {
   background: var(--bg-hover);
+}
+
+.rowOpening {
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 /* ─── Column widths ──────────────────────────────────────── */

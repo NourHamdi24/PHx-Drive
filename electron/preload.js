@@ -20,6 +20,9 @@ contextBridge.exposeInMainWorld("api", {
   // Manually download a remote-only or updated file
   downloadFile: (entityName) => ipcRenderer.invoke("files:download", entityName),
 
+  // Open a file locally with its default OS application (downloads it first if needed)
+  openFile: (entityName) => ipcRenderer.invoke("files:open", entityName),
+
   // Sync
   runSync: () => ipcRenderer.invoke("sync:run"),
   startWatcher: () => ipcRenderer.invoke("sync:startWatcher"),
@@ -46,6 +49,8 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("settings:setAutoStart", enabled),
   getAutoStart: () => ipcRenderer.invoke("settings:getAutoStart"),
   getUserProfile: () => ipcRenderer.invoke("settings:getUserProfile"),
+  getUserRank: () => ipcRenderer.invoke("settings:getUserRank"),
+  getEnergyPoints: () => ipcRenderer.invoke("settings:getEnergyPoints"),
 
   // System
   openExternal: (url) => ipcRenderer.invoke("system:openExternal", url),

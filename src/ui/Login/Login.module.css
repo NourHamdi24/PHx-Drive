@@ -28,16 +28,14 @@
   }
 }
 .logo {
-  padding: 15px 10px;
-  background-color: var(--accent);
-  margin-bottom: 2rem;
-  border-radius: 10px;
-  box-shadow:
-    0 8px 16px var(--logo-shadow-1),
-    0 16px 32px var(--logo-shadow-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.logo h1 {
-  color: #fff;
+.logo img {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
 }
 .title h1 {
   text-align: center;

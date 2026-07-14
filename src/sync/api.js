@@ -48,10 +48,10 @@ const getLoggedUser = async (frappUrl, sessionCookie) => {
 
 const getUserProfile = async (frappUrl, sessionCookie, email) => {
   const client = createClient(frappUrl, sessionCookie);
-  const response = await client.get(`/api/resource/User/${encodeURIComponent(email)}`, {
-    params: { fields: JSON.stringify(["full_name", "username", "user_image"]) },
+  const response = await client.get("/api/method/frappe.client.get", {
+    params: { doctype: "User", name: email },
   });
-  const { full_name, username, user_image } = response.data.data;
+  const { full_name, username, user_image, time_zone, language, country } = response.data.message;
 
   let image = null;
   if (user_image) {
@@ -61,7 +61,25 @@ const getUserProfile = async (frappUrl, sessionCookie, email) => {
     image = `data:${contentType};base64,${Buffer.from(imageResponse.data).toString("base64")}`;
   }
 
-  return { full_name, username, image };
+  return { full_name, username, image, time_zone, language, country };
+};
+
+const getUserRank = async (frappUrl, sessionCookie, email) => {
+  const client = createClient(frappUrl, sessionCookie);
+  const response = await client.post(
+    "/api/method/frappe.desk.page.user_profile.user_profile.get_user_rank",
+    { user: email },
+  );
+  return response.data.message;
+};
+
+const getEnergyPoints = async (frappUrl, sessionCookie, email, start = 0, limit = 20) => {
+  const client = createClient(frappUrl, sessionCookie);
+  const response = await client.post(
+    "/api/method/frappe.desk.page.user_profile.user_profile.get_energy_points_list",
+    { start, limit, user: email },
+  );
+  return response.data.message;
 };
 
 // ─── Files ─────────────────────────────────────────────────────
@@ -196,6 +214,8 @@ module.exports = {
   login,
   getLoggedUser,
   getUserProfile,
+  getUserRank,
+  getEnergyPoints,
   listFiles,
   downloadFile,
   uploadFile,

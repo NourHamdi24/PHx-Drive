@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import styles from "./Login.module.css";
+import phxLogo from "../../../build/phx.png";
 
 const Login = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState("");
@@ -38,7 +39,7 @@ const Login = ({ onLoginSuccess }) => {
       <div className={styles.loginCard}>
         <div className={styles.loginContent}>
           <div className={styles.logo}>
-            <h1>Px</h1>
+            <img src={phxLogo} alt="PHx Drive" />
           </div>
           <div className={styles.title}>
             <h1>PharaonX</h1>

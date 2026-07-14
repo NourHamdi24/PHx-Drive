@@ -43,6 +43,8 @@ const Settings = ({ user, onLogout, onSaved }) => {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [profile, setProfile] = useState(null);
+  const [userRank, setUserRank] = useState(null);
+  const [energyPoints, setEnergyPoints] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -54,6 +56,10 @@ const Settings = ({ user, onLogout, onSaved }) => {
       setAutoStart(isAutoStart);
       const userProfile = await window.api.getUserProfile();
       setProfile(userProfile);
+      const rank = await window.api.getUserRank();
+      setUserRank(rank);
+      const points = await window.api.getEnergyPoints();
+      setEnergyPoints(points);
     };
     load();
   }, []);
@@ -121,7 +127,62 @@ const Settings = ({ user, onLogout, onSaved }) => {
             Open in browser
           </button>
         </div>
+        {(profile?.time_zone || profile?.language || profile?.country || userRank?.rank != null) && (
+          <div className={styles.accountMeta}>
+            {profile?.time_zone && (
+              <span className={styles.metaItem}>
+                <span className={styles.metaLabel}>Timezone</span>
+                {profile.time_zone}
+              </span>
+            )}
+            {profile?.language && (
+              <span className={styles.metaItem}>
+                <span className={styles.metaLabel}>Language</span>
+                {profile.language}
+              </span>
+            )}
+            {profile?.country && (
+              <span className={styles.metaItem}>
+                <span className={styles.metaLabel}>Country</span>
+                {profile.country}
+              </span>
+            )}
+            {userRank?.rank != null && (
+              <span className={styles.metaItem}>
+                <span className={styles.metaLabel}>Rank</span>
+                #{userRank.rank}
+                {userRank?.points != null && ` · ${userRank.points} pts`}
+              </span>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* ── Energy Points ────────────────────────────────── */}
+      {Array.isArray(energyPoints) && energyPoints.length > 0 && (
+        <>
+          <span className={styles.sectionLabel}>Energy points</span>
+          <div className={styles.card}>
+            <div className={styles.pointsList}>
+              {energyPoints.map((p, i) => (
+                <div key={p.name || i} className={styles.pointsRow}>
+                  <span
+                    className={`${styles.pointsValue} ${p.points < 0 ? styles.pointsNegative : styles.pointsPositive}`}
+                  >
+                    {p.points > 0 ? `+${p.points}` : p.points}
+                  </span>
+                  <div className={styles.pointsInfo}>
+                    <span className={styles.pointsReason}>{p.reason || p.type || "Energy point"}</span>
+                    {p.creation && (
+                      <span className={styles.pointsDate}>{new Date(p.creation).toLocaleString()}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ── Sync Folder ──────────────────────────────────── */}
       <span className={styles.sectionLabel}>Sync folder</span>

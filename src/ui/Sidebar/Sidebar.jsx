@@ -1,4 +1,5 @@
 import styles from "./Sidebar.module.css";
+import phxLogo from "../../../build/phx.png";
 
 const FilesIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -31,7 +32,7 @@ const Sidebar = ({ activeTab, onTabChange, disabledTabs = [] }) => {
     <div className={styles.sidebar}>
       {/* Brand */}
       <div className={styles.brand}>
-        <div className={styles.logo}>Px</div>
+        <img src={phxLogo} alt="PHx Drive" className={styles.logo} />
         <div className={styles.brandText}>
           <div className={styles.brandTitle}>PHx Drive</div>
           <div className={styles.brandSubtitle}>PharaonX · No Limitations</div>

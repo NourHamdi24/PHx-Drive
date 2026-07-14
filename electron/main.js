@@ -23,6 +23,35 @@ const { getStatus, onStatusChange } = require("../src/sync/syncStatus");
 let mainWindow = null;
 let tray = null;
 
+async function downloadEntityFile(db, user, entityName, state) {
+  const fs = require("fs");
+  const path = require("path");
+  const { downloadFile } = require("../src/sync/api");
+
+  fs.mkdirSync(path.dirname(state.local_path), { recursive: true });
+  await downloadFile(
+    user.frappe_url,
+    user.session_cookie,
+    entityName,
+    state.local_path,
+  );
+  markSyncWrite(state.local_path);
+  saveSyncState(
+    db,
+    user.id,
+    {
+      name: entityName,
+      title: state.title,
+      modified: state.modified,
+      file_size: state.file_size,
+      is_group: state.is_group,
+      parent_drive_entity: state.parent_drive_entity,
+    },
+    state.local_path,
+    "synced",
+  );
+}
+
 const iconPath = app.isPackaged
   ? path.join(process.resourcesPath, "logo.png")
   : path.join(__dirname, "../build/logo.png");
@@ -318,36 +347,36 @@ app.whenReady().then(() => {
       .get(entityName, user.id);
     if (!state || !state.local_path) return { success: false };
 
-    const fs = require("fs");
-    const path = require("path");
-    const { downloadFile } = require("../src/sync/api");
-
     try {
-      fs.mkdirSync(path.dirname(state.local_path), { recursive: true });
-      await downloadFile(
-        user.frappe_url,
-        user.session_cookie,
-        entityName,
-        state.local_path,
-      );
-      markSyncWrite(state.local_path);
-      saveSyncState(
-        db,
-        user.id,
-        {
-          name: entityName,
-          title: state.title,
-          modified: state.modified,
-          file_size: state.file_size,
-          is_group: state.is_group,
-          parent_drive_entity: state.parent_drive_entity,
-        },
-        state.local_path,
-        "synced",
-      );
+      await downloadEntityFile(db, user, entityName, state);
       return { success: true };
     } catch (err) {
       console.error(`Failed to download ${entityName}:`, err.message);
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle("files:open", async (event, entityName) => {
+    const db = getDatabase();
+    const user = db.prepare("SELECT * FROM users LIMIT 1").get();
+    if (!user) return { success: false };
+
+    const state = db
+      .prepare("SELECT * FROM sync_state WHERE entity_name = ? AND user_id = ?")
+      .get(entityName, user.id);
+    if (!state || !state.local_path) return { success: false };
+
+    const fs = require("fs");
+
+    try {
+      if (!fs.existsSync(state.local_path)) {
+        await downloadEntityFile(db, user, entityName, state);
+      }
+      const error = await shell.openPath(state.local_path);
+      if (error) return { success: false, error };
+      return { success: true };
+    } catch (err) {
+      console.error(`Failed to open ${entityName}:`, err.message);
       return { success: false, error: err.message };
     }
   });
@@ -417,6 +446,32 @@ app.whenReady().then(() => {
       return await getUserProfile(user.frappe_url, user.session_cookie, user.email);
     } catch (err) {
       console.error("Failed to fetch user profile:", err);
+      return null;
+    }
+  });
+
+  ipcMain.handle("settings:getUserRank", async () => {
+    const db = getDatabase();
+    const user = db.prepare("SELECT * FROM users LIMIT 1").get();
+    if (!user) return null;
+    const { getUserRank } = require("../src/sync/api");
+    try {
+      return await getUserRank(user.frappe_url, user.session_cookie, user.email);
+    } catch (err) {
+      console.error("Failed to fetch user rank:", err);
+      return null;
+    }
+  });
+
+  ipcMain.handle("settings:getEnergyPoints", async () => {
+    const db = getDatabase();
+    const user = db.prepare("SELECT * FROM users LIMIT 1").get();
+    if (!user) return null;
+    const { getEnergyPoints } = require("../src/sync/api");
+    try {
+      return await getEnergyPoints(user.frappe_url, user.session_cookie, user.email, 0, 20);
+    } catch (err) {
+      console.error("Failed to fetch energy points:", err);
       return null;
     }
   });

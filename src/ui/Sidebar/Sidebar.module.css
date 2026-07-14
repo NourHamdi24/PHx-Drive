@@ -19,18 +19,10 @@
 }
 
 .logo {
-  width: 40px;
-  height: 40px;
-  background-color: var(--accent);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px var(--logo-shadow-1);
 }
 
 .brandText {
@@ -82,7 +74,9 @@
   cursor: pointer;
   text-align: left;
   width: 100%;
-  transition: background 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    color 0.12s;
   position: relative;
 }
 
@@ -166,4 +160,3 @@
     gap: 0;
   }
 }
-
