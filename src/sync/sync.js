@@ -4,6 +4,7 @@ const {
   listFiles,
   uploadFile,
   createFolder,
+  trashOrRestore,
   permanentDelete,
 } = require("./api");
 const { getDatabase } = require("../db/database");
@@ -156,11 +157,11 @@ const runSync = async ({ manual = false } = {}) => {
     console.log(`Local deletion detected: ${state.title}`);
     if (remoteByEntityName.has(state.entity_name)) {
       try {
-        await permanentDelete(frappe_url, session_cookie, [state.entity_name]);
-        console.log(`Deleted remotely: ${state.title}`);
+        await trashOrRestore(frappe_url, session_cookie, [state.entity_name]);
+        console.log(`Trashed remotely: ${state.title}`);
       } catch (err) {
         console.error(
-          `Failed to delete remotely ${state.entity_name}:`,
+          `Failed to trash remotely ${state.entity_name}:`,
           err.message,
         );
         continue; // leave state untouched so this is retried next sync
@@ -204,8 +205,13 @@ const runSync = async ({ manual = false } = {}) => {
     } else if (existingState) {
       const localStat = fs.statSync(localPath);
       const localModifiedTime = localStat.mtime.toISOString();
-      const lastSynced = existingState.last_synced_at;
-      const localChanged = localModifiedTime > lastSynced;
+      // last_synced_at is SQLite's CURRENT_TIMESTAMP: "YYYY-MM-DD HH:MM:SS" (UTC, no
+      // 'T'/'Z'). Comparing it against an ISO string as raw text is unsafe — parse both
+      // as actual instants instead.
+      const lastSyncedMs = Date.parse(
+        existingState.last_synced_at.replace(" ", "T") + "Z",
+      );
+      const localChanged = localStat.mtime.getTime() > lastSyncedMs;
       const remoteChanged = file.modified !== existingState.modified;
 
       if (remoteChanged && !localChanged) {
@@ -240,6 +246,11 @@ const runSync = async ({ manual = false } = {}) => {
         }, localPath, "synced");
         console.log(`Re-uploaded local edit: ${file.relativePath}`);
       }
+    } else {
+      // Exists both locally and remotely but untracked (state was lost/never
+      // recorded) — link it as synced instead of leaving it stuck forever.
+      console.log(`Re-linking untracked file: ${file.relativePath}`);
+      saveSyncState(db, user.id, file, localPath, "synced");
     }
   }
 
@@ -254,15 +265,23 @@ const runSync = async ({ manual = false } = {}) => {
       const prevState = localPathStateMap[localFile.fullPath];
 
       if (prevState) {
-        // File was previously known — remote side no longer has it. Mirror the delete locally.
         if (prevState.status === "synced") {
+          // File was previously known and confirmed synced — remote side no
+          // longer has it. Mirror the delete locally.
           console.log(`Remote deletion detected, deleting locally: ${relativePath}`);
           removeLocalPath(localFile.fullPath);
           db.prepare(
             "DELETE FROM sync_state WHERE entity_name = ? AND user_id = ?",
           ).run(prevState.entity_name, user.id);
+          continue;
         }
-        continue;
+        // Stale state that never reached "synced" (remote_only, remote_changed,
+        // pending_delete, ...) — the local file here was never actually confirmed
+        // uploaded, so clear the leftover row and fall through to upload it for
+        // real instead of silently ignoring it forever.
+        db.prepare(
+          "DELETE FROM sync_state WHERE entity_name = ? AND user_id = ?",
+        ).run(prevState.entity_name, user.id);
       }
 
       if (localFile.isFolder) {

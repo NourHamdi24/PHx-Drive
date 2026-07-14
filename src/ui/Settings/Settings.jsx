@@ -23,6 +23,13 @@ const SignOutIcon = () => (
   </svg>
 );
 
+const GuideIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+  </svg>
+);
+
 const ExternalLinkIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
@@ -33,8 +40,7 @@ const ExternalLinkIcon = () => (
 
 const Settings = ({ user, onLogout, onSaved }) => {
   const [syncFolder, setSyncFolder] = useState(user?.sync_folder_path || "");
-  const [syncMode, setSyncMode] = useState(user?.sync_mode || "manual");
-  const [syncInterval, setSyncInterval] = useState(user?.sync_interval || 30);
+  const [syncMode, setSyncMode] = useState(user?.sync_mode || "auto");
   const [autoStart, setAutoStart] = useState(false);
   const [darkMode, setDarkMode] = useState(
     () => resolveTheme(getStoredThemePreference()) === "dark",
@@ -50,8 +56,7 @@ const Settings = ({ user, onLogout, onSaved }) => {
     const load = async () => {
       const fresh = await window.api.getUserSettings();
       setSyncFolder(fresh.sync_folder_path || "");
-      setSyncMode(fresh.sync_mode || "manual");
-      setSyncInterval(fresh.sync_interval || 30);
+      setSyncMode(fresh.sync_mode || "auto");
       const isAutoStart = await window.api.getAutoStart();
       setAutoStart(isAutoStart);
       const userProfile = await window.api.getUserProfile();
@@ -68,6 +73,10 @@ const Settings = ({ user, onLogout, onSaved }) => {
     if (user?.frappe_url) window.api.openExternal(user.frappe_url);
   };
 
+  const handleOpenGuide = () => {
+    window.api.openGuide();
+  };
+
   const handleSave = async () => {
     if (!syncFolder) {
       setError("Please choose a sync folder first");
@@ -79,12 +88,11 @@ const Settings = ({ user, onLogout, onSaved }) => {
       await window.api.saveSettings({
         sync_folder_path: syncFolder,
         sync_mode: syncMode,
-        sync_interval: syncInterval,
       });
       await window.api.setAutoStart(autoStart);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
-      onSaved?.({ sync_folder_path: syncFolder, sync_mode: syncMode, sync_interval: syncInterval });
+      onSaved?.({ sync_folder_path: syncFolder, sync_mode: syncMode });
     } catch (err) {
       console.error("Failed to save settings:", err);
     } finally {
@@ -192,58 +200,38 @@ const Settings = ({ user, onLogout, onSaved }) => {
           <span className={styles.folderPath}>{syncFolder || "No folder selected"}</span>
           <button className={styles.browseBtn} onClick={handleBrowse}>Browse…</button>
         </div>
-        {error && <p className={styles.error}>{error}</p>}
       </div>
 
       {/* ── Sync Mode ────────────────────────────────────── */}
       <span className={styles.sectionLabel}>Sync mode</span>
       <div className={styles.modeGroup}>
         <button
-          className={`${styles.modeCard} ${syncMode === "manual" ? styles.modeCardActive : ""}`}
-          onClick={() => setSyncMode("manual")}
-        >
-          <span className={`${styles.radio} ${syncMode === "manual" ? styles.radioActive : ""}`} />
-          <div className={styles.modeBody}>
-            <span className={styles.modeTitle}>
-              Manual
-              <span className={styles.defaultBadge}>Default</span>
-            </span>
-            <span className={styles.modeDesc}>Sync only when you press "Sync now". Best for metered connections.</span>
-          </div>
-        </button>
-
-        <button
           className={`${styles.modeCard} ${syncMode === "auto" ? styles.modeCardActive : ""}`}
           onClick={() => setSyncMode("auto")}
         >
           <span className={`${styles.radio} ${syncMode === "auto" ? styles.radioActive : ""}`} />
           <div className={styles.modeBody}>
-            <span className={styles.modeTitle}>Automatic</span>
+            <span className={styles.modeTitle}>
+              Automatic
+              <span className={styles.defaultBadge}>Default</span>
+            </span>
             <span className={styles.modeDesc}>Files sync continuously in the background as they change.</span>
+          </div>
+        </button>
+
+        <button
+          className={`${styles.modeCard} ${syncMode === "manual" ? styles.modeCardActive : ""}`}
+          onClick={() => setSyncMode("manual")}
+        >
+          <span className={`${styles.radio} ${syncMode === "manual" ? styles.radioActive : ""}`} />
+          <div className={styles.modeBody}>
+            <span className={styles.modeTitle}>Manual</span>
+            <span className={styles.modeDesc}>Sync only when you press "Sync now". Best for metered connections.</span>
           </div>
         </button>
       </div>
 
-      {/* ── Sync Interval (auto only) ─────────────────────── */}
-      {syncMode === "auto" && (
-        <>
-          <span className={styles.sectionLabel}>Sync interval</span>
-          <div className={styles.card}>
-            <div className={styles.intervalRow}>
-              <span className={styles.intervalText}>Check for remote changes every</span>
-              <input
-                type="number"
-                className={styles.intervalInput}
-                value={syncInterval}
-                onChange={(e) => setSyncInterval(Number(e.target.value))}
-                min={10}
-                max={3600}
-              />
-              <span className={styles.intervalText}>seconds</span>
-            </div>
-          </div>
-        </>
-      )}
+      {error && <p className={styles.error}>{error}</p>}
 
       {/* ── System ───────────────────────────────────────── */}
       <span className={styles.sectionLabel}>System</span>
@@ -280,6 +268,21 @@ const Settings = ({ user, onLogout, onSaved }) => {
             />
             <span className={styles.toggleSlider} />
           </label>
+        </div>
+      </div>
+
+      {/* ── Help ─────────────────────────────────────────── */}
+      <span className={styles.sectionLabel}>Help</span>
+      <div className={styles.card}>
+        <div className={styles.toggleRow}>
+          <div className={styles.toggleInfo}>
+            <span className={styles.toggleTitle}>User guide</span>
+            <span className={styles.toggleDesc}>Open the PHx Drive guide PDF for a walkthrough of the app.</span>
+          </div>
+          <button className={styles.browseBtn} onClick={handleOpenGuide}>
+            <GuideIcon />
+            Open guide
+          </button>
         </div>
       </div>
 

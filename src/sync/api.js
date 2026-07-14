@@ -171,6 +171,19 @@ const createFolder = async (frappUrl, sessionCookie, title, parentId) => {
   return response.data.message;
 };
 
+// ─── Trash ─────────────────────────────────────────────────────
+
+const trashOrRestore = async (frappUrl, sessionCookie, entityNames) => {
+  const client = createClient(frappUrl, sessionCookie);
+  const response = await client.post(
+    "/api/method/drive.api.files.remove_or_restore",
+    {
+      entity_names: JSON.stringify(entityNames),
+    },
+  );
+  return response.data;
+};
+
 // ─── Delete ────────────────────────────────────────────────────
 
 const permanentDelete = async (frappUrl, sessionCookie, entityNames) => {
@@ -220,6 +233,7 @@ module.exports = {
   downloadFile,
   uploadFile,
   createFolder,
+  trashOrRestore,
   permanentDelete,
   getTotalStorageUsed,
   getHomeFolderId,

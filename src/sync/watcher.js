@@ -2,7 +2,7 @@ const chokidar = require("chokidar");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
-const { uploadFile, createFolder, permanentDelete } = require("./api");
+const { uploadFile, createFolder, trashOrRestore } = require("./api");
 const { getDatabase } = require("../db/database");
 const {
   beginActivity,
@@ -286,7 +286,7 @@ const startWatcher = (user, emitLog) => {
 
     beginActivity();
     try {
-      await permanentDelete(frappe_url, session_cookie, [
+      await trashOrRestore(frappe_url, session_cookie, [
         existingState.entity_name,
       ]);
 
@@ -295,7 +295,7 @@ const startWatcher = (user, emitLog) => {
       ).run(existingState.entity_name, userId);
 
       emitLog(`Deleted: ${path.basename(filePath)} ✅`);
-      console.log(`Deleted on Frappe: ${relativePath}`);
+      console.log(`Trashed on Frappe: ${relativePath}`);
       clearError();
     } catch (err) {
       emitLog(`Delete failed: ${path.basename(filePath)} ❌`);
@@ -347,7 +347,7 @@ const startWatcher = (user, emitLog) => {
 
     beginActivity();
     try {
-      await permanentDelete(frappe_url, session_cookie, [
+      await trashOrRestore(frappe_url, session_cookie, [
         existingState.entity_name,
       ]);
 
@@ -356,7 +356,7 @@ const startWatcher = (user, emitLog) => {
       ).run(existingState.entity_name, userId);
 
       emitLog(`Deleted folder: ${path.basename(dirPath)} ✅`);
-      console.log(`Folder deleted on Frappe: ${relativePath}`);
+      console.log(`Folder trashed on Frappe: ${relativePath}`);
       clearError();
     } catch (err) {
       emitLog(`Folder delete failed: ${path.basename(dirPath)} ❌`);

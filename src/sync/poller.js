@@ -3,37 +3,25 @@ const { getDatabase } = require("../db/database");
 
 let pollingTimer = null;
 
+const POLL_INTERVAL_MS = 5000;
+
 const startPolling = (emitLog, onRefresh) => {
   console.log("Polling service started");
 
   // Run immediately
   runPoll(emitLog, onRefresh);
 
-  // Then check every 5 seconds if we should poll
+  // Then poll every 5 seconds
   pollingTimer = setInterval(() => {
-    const db = getDatabase();
-    const user = db.prepare("SELECT * FROM users LIMIT 1").get();
-
-    if (!user) return;
-    if (user.sync_mode === "manual") return;
-
     runPoll(emitLog, onRefresh);
-  }, 5000); // check every 5 seconds, respects user's sync_interval inside runPoll
+  }, POLL_INTERVAL_MS);
 };
-let lastPollTime = 0;
 
 const runPoll = async (emitLog, onRefresh) => {
   const db = getDatabase();
   const user = db.prepare("SELECT * FROM users LIMIT 1").get();
 
   if (!user || user.sync_mode === "manual") return;
-
-  const interval = (user.sync_interval || 30) * 1000;
-  const now = Date.now();
-
-  // Only poll if enough time has passed since last poll
-  if (now - lastPollTime < interval) return;
-  lastPollTime = now;
 
   try {
     console.log("Polling Frappe for changes...");

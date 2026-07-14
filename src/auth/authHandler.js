@@ -90,13 +90,18 @@ const handleAutoLogin = async () => {
 
 const handleLogout = () => {
   const db = getDatabase();
-  db.prepare(
-    "DELETE FROM sync_state WHERE user_id = (SELECT id FROM users LIMIT 1)",
-  ).run();
-  db.prepare(
-    "DELETE FROM sync_queue WHERE user_id = (SELECT id FROM users LIMIT 1)",
-  ).run();
-  db.prepare("DELETE FROM users").run();
+
+  // Invalidate the session but keep the user row (and its sync_state /
+  // sync_queue) intact — logging back in with the same email reuses this
+  // row (see handleLogin's existingUser branch), so previously-synced
+  // files stay linked instead of showing up as untracked/"pending".
+  const user = db.prepare("SELECT id FROM users LIMIT 1").get();
+  if (user) {
+    db.prepare("UPDATE users SET session_cookie = '' WHERE id = ?").run(
+      user.id,
+    );
+  }
+
   clearCredentials();
   return { success: true };
 };

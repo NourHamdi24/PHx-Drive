@@ -10,8 +10,7 @@ const createTables = (db) => {
     session_cookie TEXT NOT NULL,
     root_folder_id TEXT NOT NULL,
     sync_folder_path TEXT,
-    sync_mode TEXT DEFAULT 'manual',
-    sync_interval INTEGER DEFAULT 30,
+    sync_mode TEXT DEFAULT 'auto',
     last_synced_at DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )

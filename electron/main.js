@@ -168,6 +168,8 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle("auth:logout", () => {
+    stopWatcher();
+    stopPolling();
     return handleLogout();
   });
 
@@ -394,16 +396,14 @@ app.whenReady().then(() => {
 
     db.prepare(
       `
-      UPDATE users SET 
+      UPDATE users SET
         sync_folder_path = ?,
-        sync_mode = ?,
-        sync_interval = ?
+        sync_mode = ?
       WHERE id = ?
     `,
     ).run(
       settings.sync_folder_path,
       settings.sync_mode,
-      settings.sync_interval,
       user.id,
     );
 

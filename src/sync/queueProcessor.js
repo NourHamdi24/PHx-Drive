@@ -1,6 +1,6 @@
 const fs = require("fs");
 const { getDatabase } = require("../db/database");
-const { uploadFile, permanentDelete } = require("./api");
+const { uploadFile, trashOrRestore } = require("./api");
 const {
   beginActivity,
   endActivity,
@@ -58,7 +58,7 @@ const processQueue = async () => {
           user.root_folder_id,
         );
       } else if (item.action === "delete") {
-        await permanentDelete(user.frappe_url, user.session_cookie, [
+        await trashOrRestore(user.frappe_url, user.session_cookie, [
           item.entity_name,
         ]);
 
